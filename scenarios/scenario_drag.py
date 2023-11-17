@@ -14,13 +14,12 @@ data.
 '''
 
 # Import the relevant helper scripts
-from nominalpy import Component, Simulation
-from nominalpy import printer, types
-from nominalpy.sensitivity import SensitivityAnalysis, SensitivityConfiguration
-from nominalpy.maths import value, constants
 import os, numpy
 from matplotlib import pyplot as plt
-from credential_helper import *
+from nominalpy import printer, types, Component, Simulation
+from nominalpy.sensitivity import SensitivityAnalysis, SensitivityConfiguration
+from nominalpy.maths import value, constants
+import credential_helper
 
 # Clear the terminal
 os.system('cls' if os.name == 'nt' else 'clear')
@@ -65,7 +64,7 @@ class DragSimulation (SensitivityConfiguration):
 ########################
 
 # Construct the credentials
-credentials = fetch_credentials()
+credentials = credential_helper.fetch_credentials()
 
 # Create the sensitivity analysis with the new simulation
 analysis = SensitivityAnalysis(credentials, DragSimulation())

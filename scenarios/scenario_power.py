@@ -15,12 +15,11 @@ sun and preventing the solar panel from producing power.
 '''
 
 # Import the relevant helper scripts
-from nominalpy import Component, Object, Simulation
-from nominalpy import printer, types
-from nominalpy.maths import value, astro
-from credential_helper import *
 import os, time
 from matplotlib import pyplot as plt
+from nominalpy import printer, types, Component, Object, Simulation
+from nominalpy.maths import value, astro
+import credential_helper
 
 # Clear the terminal
 os.system('cls' if os.name == 'nt' else 'clear')
@@ -35,7 +34,7 @@ printer.set_verbosity(printer.SUCCESS_VERBOSITY)
 ############################
 
 # Construct the credentials
-credentials = fetch_credentials()
+credentials = credential_helper.fetch_credentials()
 
 # Create a simulation handle
 simulation: Simulation = Simulation(credentials)

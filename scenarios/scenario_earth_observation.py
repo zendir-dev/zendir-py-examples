@@ -10,14 +10,12 @@ TODO EXPLAIN
 '''
 
 # Import the relevant helper scripts
-from nominalpy import Component, Object, Simulation
-from nominalpy import printer, types
-from nominalpy.maths import value, astro
-from credential_helper import *
-import os, time
+import credential_helper
+import os, time, math
 from matplotlib import pyplot as plt
-import math
 import matplotlib.image as mpimg
+from nominalpy import printer, types, Component, Object, Simulation
+from nominalpy.maths import value, astro
 
 # Clear the terminal
 os.system('cls' if os.name == 'nt' else 'clear')
@@ -31,7 +29,7 @@ printer.set_verbosity(printer.SUCCESS_VERBOSITY)
 ############################
 
 # Construct the credentials
-credentials = fetch_credentials()
+credentials = credential_helper.fetch_credentials()
 
 # Create a simulation handle
 simulation: Simulation = Simulation(credentials)
@@ -120,9 +118,9 @@ simulation.tick(0.05, 5000)
 
 # Capture two final images from the simulation
 simulation.capture_image("images/earth_end_fov5.png", spacecraft, exposure=-0.5, fov=5.0, timeout=3.0, 
-    size=(256, 256), cesium=True)
+    size=(256, 256), cesium=False)
 simulation.capture_image("images/earth_end_fov1.png", spacecraft, exposure=-0.5, fov=1.0, timeout=3.0, 
-    size=(256, 256), cesium=True)
+    size=(256, 256), cesium=False)
 
 
 ##############################
@@ -188,7 +186,7 @@ try:
     ax5.set_xlabel("Pixels (X)")
     ax5.set_ylabel("Pixels (Y)")
 except:
-    printer.error("Unable to find Start image of Earth. Visualiser may not be enabled.")
+    printer.error("Unable to find End image of Earth. Visualiser may not be enabled.")
 
 # Plot the image on the sixth axis
 try:
@@ -198,7 +196,7 @@ try:
     ax6.set_xlabel("Pixels (X)")
     ax6.set_ylabel("Pixels (Y)")
 except:
-    printer.error("Unable to find Start image of Earth. Visualiser may not be enabled.")
+    printer.error("Unable to find End image of Earth. Visualiser may not be enabled.")
 
 # Show the plots
 plt.tight_layout()
