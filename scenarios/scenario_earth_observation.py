@@ -11,7 +11,8 @@ TODO EXPLAIN
 
 # Import the relevant helper scripts
 import credential_helper
-import os, time, math
+import os, time, math, numpy as np
+from datetime import datetime
 from matplotlib import pyplot as plt
 import matplotlib.image as mpimg
 from nominalpy import printer, types, Component, Object, Simulation
@@ -39,7 +40,7 @@ simulation.confiure_cesium("ENTER ACCESS TOKEN")
 
 # Configure the Universe with an epoch
 universe: Object = simulation.get_system(types.UNIVERSE,
-    Epoch=value.datetime(2022, 9, 1))
+    Epoch=datetime(2022, 9, 1))
 
 # Compute the orbit from the Keplerian elements to a state vector of (position, velocity)
 orbit: tuple = astro.classical_to_vector_elements(6671, inclination=35, true_anomaly=16)
@@ -47,20 +48,20 @@ orbit: tuple = astro.classical_to_vector_elements(6671, inclination=35, true_ano
 # Adds the spacecraft
 spacecraft: Component = simulation.add_component(types.SPACECRAFT,
     TotalMass=750.0,
-    TotalCenterOfMass=value.vector3(0, 0, 0),
-    TotalMomentOfInertia=value.matrix33((900, 0, 0), (0, 800, 0), (0, 0, 600)),
-    Position=value.vector3(58836722.076589, 269166981.654502, 117536524.015802),
-    Velocity=value.vector3(1428.502224, -264.114737, -1574.090242),
-    AttitudeRate=value.vector3(0.2, 0.1, 0.05))
+    TotalCenterOfMass=np.array([0, 0, 0]),
+    TotalMomentOfInertia=np.array([[900, 0, 0], [0, 800, 0], [0, 0, 600]]),
+    Position=np.array([58836722.076589, 269166981.654502, 117536524.015802]),
+    Velocity=np.array([1428.502224, -264.114737, -1574.090242]),
+    AttitudeRate=np.array([0.2, 0.1, 0.05]))
 
 # Adds a reaction wheel and the stack
 reaction_wheels: Component = simulation.add_component("ReactionWheelArray", spacecraft)
 rw1: Component = simulation.add_component("ReactionWheel", reaction_wheels, 
-    WheelSpinAxis_B=value.vector3(1, 0, 0))
+    WheelSpinAxis_B=np.array([1, 0, 0]))
 rw2: Component = simulation.add_component("ReactionWheel", reaction_wheels, 
-    WheelSpinAxis_B=value.vector3(0, 1, 0))
+    WheelSpinAxis_B=np.array([0, 1, 0]))
 rw3: Component = simulation.add_component("ReactionWheel", reaction_wheels, 
-    WheelSpinAxis_B=value.vector3(0, 0, 1))
+    WheelSpinAxis_B=np.array([0, 0, 1]))
 
 # Adds a simple navigator
 navigator: Component = simulation.add_component("SimpleNavigator", spacecraft)
@@ -76,13 +77,13 @@ lvlh_fsw: Component = simulation.add_component("LVLHPointingSoftware", spacecraf
 # Add an attitude reference correction
 att_reference_fsw: Component = simulation.add_component("AttitudeReferenceCorrectionSoftware", spacecraft,
     In_AttRefMsg=lvlh_fsw.get_value("Out_AttRefMsg"),
-    Sigma_RcR=value.vector3(0, math.tan(math.pi / 8), 0))
+    Sigma_RcR=np.array([0, math.tan(math.pi / 8), 0]))
 
 # Add in the attitude tracking error software
 att_tracking_fsw: Component = simulation.add_component("AttitudeTrackingErrorSoftware", spacecraft,
     In_AttRefMsg=att_reference_fsw.get_value("Out_AttRefMsg"),
     In_NavAttMsg=navigator.get_value("Out_NavAttMsg"),
-    Sigma_BcB=value.vector3(0, 0, 0))
+    Sigma_BcB=np.array([0, 0, 0]))
 
 # Add in the MRP feedback software
 mrp_feedback_fsw: Component = simulation.add_component("MRPFeedbackSoftware", spacecraft,
@@ -132,26 +133,22 @@ figure, ((ax1, ax2, ax3), (ax4, ax5, ax6)) = plt.subplots(2, 3, figsize=(12, 6))
 
 # Plot the first set of data
 data = att_tracking_fsw.get_message("Out_AttGuidMsg").fetch("Sigma_BR")
-time = value.get_array(data, "time")
-x = value.get_array(data, "Sigma_BR", "X")
-y = value.get_array(data, "Sigma_BR", "Y")
-z = value.get_array(data, "Sigma_BR", "Z")
-ax1.plot(time, x, label = "X [MRP]", color = "red")
-ax1.plot(time, y, label = "Y [MRP]", color = "green")
-ax1.plot(time, z, label = "Z [MRP]", color = "blue")
+times: np.ndarray = value.get_array(data, "time")
+sigma: np.ndarray = value.get_array(data, "Sigma_BR")
+ax1.plot(times, sigma)
 
 # Configure the axis
 ax1.set_title("Nadir Pointing Error")
 ax1.set_xlabel("Time [s]")
 ax1.set_ylabel("Sigma [MRP]")
-ax1.legend()
+ax1.legend(["X", "Y", "Z"])
 
 # Plot the third set of data with reaction wheel speeds
 data = reaction_wheels.get_message("Out_RWSpeedMsg").fetch("WheelSpeeds")
-time = value.get_array(data, "time")
+times: np.ndarray = value.get_array(data, "time")
 for i in range(3):
     speeds = value.get_array(data, "WheelSpeeds", index=i)
-    ax4.plot(time, speeds, label = "RW %d Speed [r/s]" % (i + 1), color="cyan")
+    ax4.plot(times, speeds, label = "RW %d Speed [r/s]" % (i + 1), color="cyan")
 
 # Plot the image on the fourth axis
 try:

@@ -14,7 +14,8 @@ data.
 '''
 
 # Import the relevant helper scripts
-import os, numpy
+import os, numpy as np
+from datetime import datetime
 from matplotlib import pyplot as plt
 from nominalpy import printer, types, Component, Simulation
 from nominalpy.sensitivity import SensitivityAnalysis, SensitivityConfiguration
@@ -45,13 +46,13 @@ class DragSimulation (SensitivityConfiguration):
 
         # Configure the Universe with an epoch
         self.simulation.get_system(types.UNIVERSE, 
-            Epoch=value.datetime(2022, 1, 1))
+            Epoch=datetime(2022, 1, 1))
 
         # Adds the spacecraft
         self.spacecraft: Component = self.simulation.add_component(types.SPACECRAFT,
             TotalMass=10.0,
-            Position=value.vector3(0.0000, -6578140.0000, 0.0000),
-            Velocity=value.vector3(7784.2605, 0.0000, 0.0000))
+            Position=np.array([0.0000, -6578140.0000, 0.0000]),
+            Velocity=np.array([7784.2605, 0.0000, 0.0000]))
 
         # Give a drag to the second craft
         self.drag: Component = self.simulation.add_component("DragEffector", self.spacecraft, 
@@ -78,7 +79,7 @@ for case in areas:
 analysis.subscribe("spacecraft", "Out_BodyStatesMsg")
 
 # Run the analysis
-analysis.run(1500, 3.0)
+analysis.run(1500, 5.0)
 
 
 
@@ -94,8 +95,8 @@ figure, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 6))
 
 # Plot the first set of data on the first graph
 for idx, area in enumerate(areas):
-    x: list = value.get_array(data[idx], "R_BN_N", "X")
-    y: list = value.get_array(data[idx], "R_BN_N", "Y")
+    x: np.ndarray = value.get_array(data[idx], "R_BN_N", 0)
+    y: np.ndarray = value.get_array(data[idx], "R_BN_N", 1)
     ax1.scatter(x, y, 1.0, marker = 'o', label = "%d" % area)
 earth = plt.Circle(( 0.0 , 0.0 ), 6378136.6, color = 'blue', label = 'Earth')
 
@@ -111,11 +112,9 @@ ax1.add_artist(earth)
 # Plot the second set of data on the second graph
 time = value.get_array(data[0], "time")
 for idx, area in enumerate(areas):
-    x: numpy.ndarray = numpy.array(value.get_array(data[idx], "R_BN_N", "X"))
-    y: numpy.ndarray = numpy.array(value.get_array(data[idx], "R_BN_N", "Y"))
-    z: numpy.ndarray = numpy.array(value.get_array(data[idx], "R_BN_N", "Z"))
-    height = ((x ** 2 + y ** 2 + z ** 2) ** 0.5 - constants.EARTH_REQ)
-    ax2.plot(time, height, label = "%d [m^2] Drag Area" % area)
+    r: np.ndarray = value.get_array(data[idx], "R_BN_N")
+    heights: np.ndarray = np.linalg.norm(r, axis=1) - constants.EARTH_REQ
+    ax2.plot(time, heights, label = "%d [m^2] Drag Area" % area)
 
 # Configure the axis
 ax2.set_title("Altitude over Time")
