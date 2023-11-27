@@ -26,7 +26,7 @@ import credential_helper
 os.system('cls' if os.name == 'nt' else 'clear')
 
 # Set the verbosity
-printer.set_verbosity(printer.LOG_VERBOSITY)
+printer.set_verbosity(printer.SUCCESS_VERBOSITY)
 
 
 
