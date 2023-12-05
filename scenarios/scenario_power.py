@@ -72,6 +72,14 @@ navigator: Component = simulation.add_component("SimpleNavigator", spacecraft)
 solar_panel: Component = simulation.add_component("SolarPanel", spacecraft, 
     Area=0.01, Efficiency=0.23)
 
+# Add in a battery
+battery: Component = simulation.add_component("PowerStorage", spacecraft, 
+    ChargeFraction=0.2)
+
+# Add in a power bus and connect up the solar panel and battery
+bus: Component = simulation.add_component("PowerBus", spacecraft)
+bus.invoke("Connect", solar_panel.id, battery.id)
+
 # Adds in Sun Safe Pointing
 sun_point_fsw: Component = simulation.add_component("SunSafePointingSoftware", spacecraft,
     MinUnitMag=0.001,
@@ -106,10 +114,11 @@ spacecraft.get_message("Out_EclipseMsg").subscribe(5.0)
 navigator.get_message("Out_NavAttMsg").subscribe(5.0)
 sun_point_fsw.get_message("Out_AttGuidMsg").subscribe(5.0)
 solar_panel.get_message("Out_PowerSourceMsg").subscribe(5.0)
+battery.get_message("Out_PowerStorageMsg").subscribe(5.0)
 reaction_wheels.get_message("Out_RWSpeedMsg").subscribe(5.0)
 
 # Execute the simulation to be ticked
-simulation.tick(0.05, 2000)
+simulation.tick(0.05, 5000)
 
 
 ##############################
@@ -132,16 +141,15 @@ ax1.set_ylabel("Sigma [MRP]")
 ax1.legend(['X', 'Y', 'Z'])
 
 # Plot the second set of data of current attitude
-data = navigator.get_message("Out_NavAttMsg").fetch("Sigma_BN")
+data = battery.get_message("Out_PowerStorageMsg").fetch("ChargeFraction")
 times: np.ndarray = value.get_array(data, "time")
-sigma: np.ndarray = value.get_array(data, "Sigma_BN")
-ax2.plot(times, sigma)
+charge: np.ndarray = value.get_array(data, "ChargeFraction") * 100
+ax2.plot(times, charge)
 
 # Configure the axis
-ax2.set_title("Sun Pointing Attitude")
+ax2.set_title("Battery Charge")
 ax2.set_xlabel("Time [s]")
-ax2.set_ylabel("Attitude [MRP]")
-ax2.legend(['X', 'Y', 'Z'])
+ax2.set_ylabel("Charge [%]")
 
 # Plot the third set of data with power and visibility
 data = solar_panel.get_message("Out_PowerSourceMsg").fetch("Power")
