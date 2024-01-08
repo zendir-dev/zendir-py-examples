@@ -42,7 +42,7 @@ class DragSimulation (SensitivityConfiguration):
     def configure(self) -> None:
         
         # Create a simulation handle
-        self.simulation: Simulation = Simulation(self.get_credentials())
+        self.simulation: Simulation = Simulation(self.get_credentials(), delete_database=False)
 
         # Configure the Universe with an epoch
         self.simulation.get_system(types.UNIVERSE, 
