@@ -48,8 +48,8 @@ orbit: tuple = astro.classical_to_vector_elements(6778.0)
 # Adds the spacecraft
 spacecraft: Component = simulation.add_component(types.SPACECRAFT,
     TotalMass=10.0,
-    TotalCenterOfMass=np.array([0, 0, 0]),
-    TotalMomentOfInertia=np.array([[0.067, 0, 0], [0, 0.419, 0], [0, 0, 0.419]]),
+    TotalCenterOfMassB_B=np.array([0, 0, 0]),
+    TotalMomentOfInertiaB_B=np.array([[0.067, 0, 0], [0, 0.419, 0], [0, 0, 0.419]]),
     Position=orbit[0],
     Velocity=orbit[1],
     AttitudeRate=np.array([0.01, -0.01, 0.0]))
