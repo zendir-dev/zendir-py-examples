@@ -4,7 +4,7 @@
                     [ NOMINAL SYSTEMS ]
 This code is developed by Nominal Systems to aid with communication 
 to the public API. All code is under the the license provided along
-with the 'nominalpy' module. Copyright Nominal Systems, 2023.
+with the 'nominalpy' module. Copyright Nominal Systems, 2024.
 
 This example shows a spacecraft with four magnetic torque bars
 attached. These torque bars have unique axes and are able to react
@@ -43,7 +43,7 @@ universe: Object = simulation.get_system(types.UNIVERSE,
     Epoch=datetime(2022, 1, 1))
 
 # Compute the orbit from the Keplerian elements to a state vector of (position, velocity)
-orbit: tuple = astro.classical_to_vector_elements(6778.0)
+orbit: tuple = astro.classical_to_vector_elements(6778000.0)
 
 # Adds the spacecraft
 spacecraft: Component = simulation.add_component(types.SPACECRAFT,

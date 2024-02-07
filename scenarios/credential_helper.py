@@ -2,7 +2,7 @@
                     [ NOMINAL SYSTEMS ]
 This code is developed by Nominal Systems to aid with communication 
 to the public API. All code is under the the license provided along
-with the 'nominalpy' module. Copyright Nominal Systems, 2023.
+with the 'nominalpy' module. Copyright Nominal Systems, 2024.
 
 This method allows for easy exporting of custom-defined credentials,
 specified within the parameters below. Importing this method into
@@ -15,7 +15,7 @@ from nominalpy import Credentials
 
 # Defines the credentials for a Local API connection
 LOCAL_URL: str = "http://localhost"
-LOCAL_PORT: int = 5001
+LOCAL_PORT: int = 5100
 LOCAL_KEY: str = ""
 
 # Defines the credentials for a Public API connection

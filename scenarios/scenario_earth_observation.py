@@ -4,7 +4,7 @@
                     [ NOMINAL SYSTEMS ]
 This code is developed by Nominal Systems to aid with communication 
 to the public API. All code is under the the license provided along
-with the 'nominalpy' module. Copyright Nominal Systems, 2023.
+with the 'nominalpy' module. Copyright Nominal Systems, 2024.
 
 TODO EXPLAIN
 '''
@@ -43,7 +43,7 @@ universe: Object = simulation.get_system(types.UNIVERSE,
     Epoch=datetime(2022, 9, 1))
 
 # Compute the orbit from the Keplerian elements to a state vector of (position, velocity)
-orbit: tuple = astro.classical_to_vector_elements(6671, inclination=35, true_anomaly=16)
+orbit: tuple = astro.classical_to_vector_elements(6671000.0, inclination=35, true_anomaly=16)
 
 # Adds the spacecraft
 spacecraft: Component = simulation.add_component(types.SPACECRAFT,
