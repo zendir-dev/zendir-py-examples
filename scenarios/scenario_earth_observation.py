@@ -6,7 +6,11 @@ This code is developed by Nominal Systems to aid with communication
 to the public API. All code is under the the license provided along
 with the 'nominalpy' module. Copyright Nominal Systems, 2024.
 
-TODO EXPLAIN
+This example has a spacecraft with a camera pointing towards the Earth,
+using a LVLH (or NADIR) pointing software chain. Additionally, the script
+is able to use the visualiser (if it is available) to capture imagery
+of the Earth from the specific locations in the orbit. The images are
+then plotted to show the Earth from the spacecraft's perspective.
 '''
 
 # Import the relevant helper scripts

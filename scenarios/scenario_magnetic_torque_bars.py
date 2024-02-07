@@ -8,8 +8,8 @@ with the 'nominalpy' module. Copyright Nominal Systems, 2024.
 
 This example shows a spacecraft with four magnetic torque bars
 attached. These torque bars have unique axes and are able to react
-to the magnetic field (a centered dipole). The reaction wheels are
-then pointed towards the [TODO]
+to the magnetic field (a centered dipole). The bars can use the
+magnetic field to perform an inertial poitning task.
 '''
 
 # Import the relevant helper scripts
