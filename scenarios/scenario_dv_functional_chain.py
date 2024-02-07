@@ -1,8 +1,8 @@
-"""
+'''
                     [ NOMINAL SYSTEMS ]
 This code is developed by Nominal Systems to aid with communication
 to the public API. All code is under the the license provided along
-with the 'nominalpy' module. Copyright Nominal Systems, 2023.
+with the 'nominalpy' module. Copyright Nominal Systems, 2024.
 
 This script instantiates a spacecraft in low Earth orbit possessing a propulsion system composed of:
 - A thruster with a thrust vector aligned with the vehicle centre of mass
@@ -16,25 +16,34 @@ executes its burn to raise its orbit.
 
 The scenario plots the attitude error over time to showcasing that the desired pointing is achieved, and the semi-major
 axis of the spacecraft's orbit to show the orbit raising effect of the thruster.
-"""
+'''
+
 import numpy as np
 from matplotlib import pyplot as plt
-
 from nominalpy import types
 from nominalpy.maths import value, astro, utils
 from nominalpy.maths.constants import RPM
-from nominalpy import Component, Simulation
-
+from nominalpy import Component, Simulation, printer
 import credential_helper
+import os
+
+# Clear the terminal
+os.system('cls' if os.name == 'nt' else 'clear')
+
+# Set the verbosity
+printer.set_verbosity(printer.SUCCESS_VERBOSITY)
 
 
-# create a simulation object with authenitcation
+
+############################
+# SIMULATION CONFIGURATION #
+############################
+
 # Construct the credentials
 credentials = credential_helper.fetch_credentials()
 
 # Create a simulation handle
 simulation: Simulation = Simulation(credentials)
-
 
 # define the properties of the fuel node
 model_type: str = "UNIFORM_BURN"
@@ -44,7 +53,6 @@ total_temperature: float = 250  # K
 total_pressure: float = 2.758e+3  # Pa
 max_flow_rate: float = 2  # kg / s
 thrust_duration: float = 100  # seconds
-
 
 # define the classic orbital elements
 sma_start: float = 6931 * 1000.0  # m
@@ -288,6 +296,16 @@ att_tracking_error = attitude_tracking_error_fsw.get_message("Out_AttGuidMsg").f
 thrust = thruster_main.get_message("Out_ThrusterOperationMsg").fetch_df()
 propellant = fuel_source_main.get_message("Out_FuelSourceStatusMsg").fetch_df()
 
+# Set up a plt subplots so there are multiple graphs
+figure = plt.figure()
+gs = figure.add_gridspec(2, 2)
+ax1 = figure.add_subplot(gs[:, 1])
+ax2 = figure.add_subplot(gs[0, 0])
+ax3 = figure.add_subplot(gs[1, 0])
+
+# Change the size of the figure to be bigger
+figure.set_size_inches(12, 6)
+
 # create a plot of the Sigma_BR axes within the att_tracking_error dataframe on a single plot with a
 #   legend, unique set of colors, x label, y label, and unique set of axes. Show the plot.
 att_tracking_error.plot(
@@ -296,10 +314,9 @@ att_tracking_error.plot(
     xlabel="Time [s]",
     ylabel="Sigma [MRP]",
     legend=True,
-    title="Attitude Tracking Error"
+    title="Attitude Tracking Error",
+    ax=ax1
 )
-plt.show()
-
 
 # calculate orbital elements
 def f(x):
@@ -322,46 +339,43 @@ def f(x):
 elm = body_states.apply(f, axis=1)
 # plot the osculating and mean semi-major axis from the body states dataframe on a new set of axes
 # create matplotlib plot axes
-fig, ax = plt.subplots()
 # plot the osculating orbital elements on ax
-ax.plot(
+ax2.plot(
     elm.loc[:, "time"].values,
     elm.loc[:, "sma_osc"].values,
     label="Semi-Major Axis",
 )
 # plot the mean orbital elements on ax
 # set the x label
-ax.set_xlabel("Time [s]")
+ax2.set_title("Orbit Raising Maneuver")
 # set the y label
-ax.set_ylabel("Semi-Major Axis [m]")
+ax2.set_ylabel("Semi-Major Axis [m]")
 # set the legend
-ax.legend()
+ax2.legend()
 
 # create a shaded area on the plot ax corresponding to when the thrust factor is greater than 0
-ax.fill_between(
+ax2.fill_between(
     x=thrust.loc[thrust["ThrustFactor"] > 0, "time"],
     # the smaller of the min of the semi-major axis and the min of the mean semi-major axis
-    y1=np.min(ax.get_yticks()),
+    y1=np.min(ax2.get_yticks()),
     # the larger of the max of the semi-major axis and the max of the mean semi-major axis
-    y2=np.max(ax.get_yticks()),
+    y2=np.max(ax2.get_yticks()),
     color="red",
     alpha=0.3
 )
 
-# plot the reduction in propellant mass over time
-_, ax = plt.subplots()
 # plot the propellant mass on ax
-ax.plot(
+ax3.plot(
     propellant.loc[:, "time"].values,
     propellant.loc[:, "Amount"].values,
     label="Propellant Mass",
 )
 # set the x label
-ax.set_xlabel("Time [s]")
+ax3.set_xlabel("Time [s]")
 # set the y label
-ax.set_ylabel("Propellant Mass [kg]")
+ax3.set_ylabel("Propellant Mass [kg]")
 # set the legend
-ax.legend()
+ax3.legend()
 
 
 plt.show()
