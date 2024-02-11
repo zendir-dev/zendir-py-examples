@@ -19,7 +19,7 @@ import os, numpy as np
 from datetime import datetime
 from matplotlib import pyplot as plt
 from nominalpy import printer, types, Component, Object, Simulation
-from nominalpy.maths import value, astro
+from nominalpy.maths import value, astro, constants
 import credential_helper
 
 # Clear the terminal
@@ -45,7 +45,9 @@ universe: Object = simulation.get_system(types.UNIVERSE,
     Epoch=datetime(2022, 1, 1))
 
 # Compute the orbit from the Keplerian elements to a state vector of (position, velocity)
-orbit: tuple = astro.classical_to_vector_elements(6671000, inclination=35, true_anomaly=16)
+orbit: tuple = astro.classical_to_vector_elements(6671000, 
+    inclination  = 35 * constants.D2R, 
+    true_anomaly = 16 * constants.D2R)
 
 # Adds the spacecraft
 spacecraft: Component = simulation.add_component(types.SPACECRAFT,
@@ -53,8 +55,7 @@ spacecraft: Component = simulation.add_component(types.SPACECRAFT,
     TotalCenterOfMassB_B=np.array([0, 0, 0]),
     TotalMomentOfInertiaB_B=np.array([[900, 0, 0], [0, 800, 0], [0, 0, 600]]),
     Position=orbit[0],
-    Velocity=orbit[1],
-    AttitudeRate=np.array([0.2, 0.1, 0.05]))
+    Velocity=orbit[1])
 
 # Adds a reaction wheel and the stack
 reaction_wheels: Component = simulation.add_component("ReactionWheelArray", spacecraft)
@@ -118,7 +119,7 @@ battery.get_message("Out_PowerStorageMsg").subscribe(5.0)
 reaction_wheels.get_message("Out_RWSpeedMsg").subscribe(5.0)
 
 # Execute the simulation to be ticked
-simulation.tick(0.05, 5000)
+simulation.tick(0.1, 5000)
 
 
 ##############################

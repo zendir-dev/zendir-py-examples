@@ -261,7 +261,7 @@ default_timestep: float = 0.1
 has_fired: bool = False
 while simulation.get_time() < 1200:
     # set the number of iterations to 1000 if the thruster has fired, otherwise 100
-    iterations = 100 if not has_fired else 10000
+    iterations = 100 if not has_fired else 1000
 
     # tick the simulation forward in time
     simulation.tick(default_timestep, iterations=iterations)
