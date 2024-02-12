@@ -4,9 +4,13 @@
                     [ NOMINAL SYSTEMS ]
 This code is developed by Nominal Systems to aid with communication 
 to the public API. All code is under the the license provided along
-with the 'nominalpy' module. Copyright Nominal Systems, 2023.
+with the 'nominalpy' module. Copyright Nominal Systems, 2024.
 
-TODO EXPLAIN
+This example has a spacecraft with a camera pointing towards the Earth,
+using a LVLH (or NADIR) pointing software chain. Additionally, the script
+is able to use the visualiser (if it is available) to capture imagery
+of the Earth from the specific locations in the orbit. The images are
+then plotted to show the Earth from the spacecraft's perspective.
 '''
 
 # Import the relevant helper scripts
@@ -43,13 +47,13 @@ universe: Object = simulation.get_system(types.UNIVERSE,
     Epoch=datetime(2022, 9, 1))
 
 # Compute the orbit from the Keplerian elements to a state vector of (position, velocity)
-orbit: tuple = astro.classical_to_vector_elements(6671, inclination=35, true_anomaly=16)
+orbit: tuple = astro.classical_to_vector_elements(6671000.0, inclination=35, true_anomaly=16)
 
 # Adds the spacecraft
 spacecraft: Component = simulation.add_component(types.SPACECRAFT,
     TotalMass=750.0,
-    TotalCenterOfMass=np.array([0, 0, 0]),
-    TotalMomentOfInertia=np.array([[900, 0, 0], [0, 800, 0], [0, 0, 600]]),
+    TotalCenterOfMassB_B=np.array([0, 0, 0]),
+    TotalMomentOfInertiaB_B=np.array([[900, 0, 0], [0, 800, 0], [0, 0, 600]]),
     Position=np.array([58836722.076589, 269166981.654502, 117536524.015802]),
     Velocity=np.array([1428.502224, -264.114737, -1574.090242]),
     AttitudeRate=np.array([0.2, 0.1, 0.05]))

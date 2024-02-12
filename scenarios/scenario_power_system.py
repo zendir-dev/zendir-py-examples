@@ -4,7 +4,7 @@
                     [ NOMINAL SYSTEMS ]
 This code is developed by Nominal Systems to aid with communication 
 to the public API. All code is under the the license provided along
-with the 'nominalpy' module. Copyright Nominal Systems, 2023.
+with the 'nominalpy' module. Copyright Nominal Systems, 2024.
 
 This example shows a spacecraft with a sun pointing ADCS system that
 will orient the spacecraft to face its solar panel towards the sun,
@@ -19,7 +19,7 @@ import os, numpy as np
 from datetime import datetime
 from matplotlib import pyplot as plt
 from nominalpy import printer, types, Component, Object, Simulation
-from nominalpy.maths import value, astro
+from nominalpy.maths import value, astro, constants
 import credential_helper
 
 # Clear the terminal
@@ -45,16 +45,17 @@ universe: Object = simulation.get_system(types.UNIVERSE,
     Epoch=datetime(2022, 1, 1))
 
 # Compute the orbit from the Keplerian elements to a state vector of (position, velocity)
-orbit: tuple = astro.classical_to_vector_elements(6671, inclination=35, true_anomaly=16)
+orbit: tuple = astro.classical_to_vector_elements(6671000, 
+    inclination  = 35 * constants.D2R, 
+    true_anomaly = 16 * constants.D2R)
 
 # Adds the spacecraft
 spacecraft: Component = simulation.add_component(types.SPACECRAFT,
     TotalMass=750.0,
-    TotalCenterOfMass=np.array([0, 0, 0]),
-    TotalMomentOfInertia=np.array([[900, 0, 0], [0, 800, 0], [0, 0, 600]]),
+    TotalCenterOfMassB_B=np.array([0, 0, 0]),
+    TotalMomentOfInertiaB_B=np.array([[900, 0, 0], [0, 800, 0], [0, 0, 600]]),
     Position=orbit[0],
-    Velocity=orbit[1],
-    AttitudeRate=np.array([0.2, 0.1, 0.05]))
+    Velocity=orbit[1])
 
 # Adds a reaction wheel and the stack
 reaction_wheels: Component = simulation.add_component("ReactionWheelArray", spacecraft)
@@ -71,6 +72,14 @@ navigator: Component = simulation.add_component("SimpleNavigator", spacecraft)
 # Adds a solar panel
 solar_panel: Component = simulation.add_component("SolarPanel", spacecraft, 
     Area=0.01, Efficiency=0.23)
+
+# Add in a battery
+battery: Component = simulation.add_component("PowerStorage", spacecraft, 
+    ChargeFraction=0.2)
+
+# Add in a power bus and connect up the solar panel and battery
+bus: Component = simulation.add_component("PowerBus", spacecraft)
+bus.invoke("Connect", solar_panel.id, battery.id)
 
 # Adds in Sun Safe Pointing
 sun_point_fsw: Component = simulation.add_component("SunSafePointingSoftware", spacecraft,
@@ -106,10 +115,11 @@ spacecraft.get_message("Out_EclipseMsg").subscribe(5.0)
 navigator.get_message("Out_NavAttMsg").subscribe(5.0)
 sun_point_fsw.get_message("Out_AttGuidMsg").subscribe(5.0)
 solar_panel.get_message("Out_PowerSourceMsg").subscribe(5.0)
+battery.get_message("Out_PowerStorageMsg").subscribe(5.0)
 reaction_wheels.get_message("Out_RWSpeedMsg").subscribe(5.0)
 
 # Execute the simulation to be ticked
-simulation.tick(0.05, 2000)
+simulation.tick(0.1, 5000)
 
 
 ##############################
@@ -132,16 +142,15 @@ ax1.set_ylabel("Sigma [MRP]")
 ax1.legend(['X', 'Y', 'Z'])
 
 # Plot the second set of data of current attitude
-data = navigator.get_message("Out_NavAttMsg").fetch("Sigma_BN")
+data = battery.get_message("Out_PowerStorageMsg").fetch("ChargeFraction")
 times: np.ndarray = value.get_array(data, "time")
-sigma: np.ndarray = value.get_array(data, "Sigma_BN")
-ax2.plot(times, sigma)
+charge: np.ndarray = value.get_array(data, "ChargeFraction") * 100
+ax2.plot(times, charge)
 
 # Configure the axis
-ax2.set_title("Sun Pointing Attitude")
+ax2.set_title("Battery Charge")
 ax2.set_xlabel("Time [s]")
-ax2.set_ylabel("Attitude [MRP]")
-ax2.legend(['X', 'Y', 'Z'])
+ax2.set_ylabel("Charge [%]")
 
 # Plot the third set of data with power and visibility
 data = solar_panel.get_message("Out_PowerSourceMsg").fetch("Power")

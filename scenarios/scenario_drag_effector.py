@@ -4,7 +4,7 @@
                     [ NOMINAL SYSTEMS ]
 This code is developed by Nominal Systems to aid with communication 
 to the public API. All code is under the the license provided along
-with the 'nominalpy' module. Copyright Nominal Systems, 2023.
+with the 'nominalpy' module. Copyright Nominal Systems, 2024.
 
 This example shows a sensitivity analysis scenario, showcasing the
 affect on spacecraft altitude different projected areas have due to 
@@ -42,7 +42,7 @@ class DragSimulation (SensitivityConfiguration):
     def configure(self) -> None:
         
         # Create a simulation handle
-        self.simulation: Simulation = Simulation(self.get_credentials())
+        self.simulation: Simulation = Simulation(self.get_credentials(), delete_database=False)
 
         # Configure the Universe with an epoch
         self.simulation.get_system(types.UNIVERSE, 
