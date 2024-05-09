@@ -28,6 +28,9 @@ os.system('cls' if os.name == 'nt' else 'clear')
 # Set the verbosity of the messages printed to the screen
 printer.set_verbosity(printer.SUCCESS_VERBOSITY)
 
+# Issue warning for now
+printer.warning("This scenario is currently experimental. It may not work as expected.")
+
 
 
 ############################
