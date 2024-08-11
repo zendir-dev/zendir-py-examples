@@ -46,7 +46,7 @@ simulation: Simulation = Simulation(credentials)
 simulation.confiure_cesium("ENTER ACCESS TOKEN")
 
 # Configure the Universe with an epoch
-universe: Object = simulation.get_system(types.UNIVERSE,
+universe: Object = simulation.get_system(types.SOLAR_SYSTEM,
     Epoch=datetime(2022, 9, 1))
 
 # Compute the orbit from the Keplerian elements to a state vector of (position, velocity)

@@ -48,7 +48,7 @@ class DragSimulation (SensitivityConfiguration):
         self.simulation: Simulation = Simulation(self.get_credentials(), delete_database=False)
 
         # Configure the Universe with an epoch
-        self.simulation.get_system(types.UNIVERSE, 
+        self.simulation.get_system(types.SOLAR_SYSTEM, 
             Epoch=datetime(2022, 1, 1))
 
         # Adds the spacecraft

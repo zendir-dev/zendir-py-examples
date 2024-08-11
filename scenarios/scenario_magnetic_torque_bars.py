@@ -39,7 +39,7 @@ credentials = credential_helper.fetch_credentials()
 simulation: Simulation = Simulation(credentials)
 
 # Configure the Universe with an epoch
-universe: Object = simulation.get_system(types.UNIVERSE,
+universe: Object = simulation.get_system(types.SOLAR_SYSTEM,
     Epoch=datetime(2022, 1, 1))
 
 # Compute the orbit from the Keplerian elements to a state vector of (position, velocity)

@@ -21,7 +21,7 @@ LOCAL_KEY: str = ""
 # Defines the credentials for a Public API connection
 GLOBAL_URL: str = "https://api.nominalsys.com"
 GLOBAL_PORT: int = None
-GLOBAL_KEY: str = ""        # This is where the access key for the API should be added
+GLOBAL_KEY: str = "ZQ4fE8jZAM5vTkzmimc3M1U1apiIIb9nwb2BdLW2"        # This is where the access key for the API should be added
 
 # The flag that sets whether to use the public API or the local one.
 USE_PUBLIC_API: bool = True
