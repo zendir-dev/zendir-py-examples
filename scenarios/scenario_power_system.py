@@ -38,7 +38,7 @@ printer.set_verbosity(printer.SUCCESS_VERBOSITY)
 credentials = credential_helper.fetch_credentials()
 
 # Create a simulation handle
-simulation: Simulation = Simulation(credentials)
+simulation: Simulation = Simulation.get(credentials)
 
 # TODO: Configure the Universe with an epoch
 epoch = datetime(2022, 1, 1)

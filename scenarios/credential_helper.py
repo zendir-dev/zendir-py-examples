@@ -15,13 +15,13 @@ from nominalpy import Credentials
 
 # Defines the credentials for a Local API connection
 LOCAL_URL: str = "http://localhost"
-LOCAL_PORT: int = 5100
+LOCAL_PORT: int = 8080
 LOCAL_KEY: str = ""
 
 # Defines the credentials for a Public API connection
 GLOBAL_URL: str = "https://api.nominalsys.com"
 GLOBAL_PORT: int = None
-GLOBAL_KEY: str = "ZQ4fE8jZAM5vTkzmimc3M1U1apiIIb9nwb2BdLW2"        # This is where the access key for the API should be added
+GLOBAL_KEY: str = ""        # This is where the access key for the API should be added
 
 # The flag that sets whether to use the public API or the local one.
 USE_PUBLIC_API: bool = True
@@ -33,7 +33,11 @@ def fetch_credentials () -> Credentials:
     all files that are passing in credentials to the simulation.
     This works for both the public and local API, provided that
     the flag USE_PUBLIC_API is called.
+
+    :returns:   The credentials for the API connection
+    :rtype:     Credentials
     '''
+    
     if USE_PUBLIC_API:
         return Credentials(GLOBAL_URL, GLOBAL_PORT, GLOBAL_KEY)
     return Credentials(LOCAL_URL, LOCAL_PORT, LOCAL_KEY)
