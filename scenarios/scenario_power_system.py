@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 
 '''
                     [ NOMINAL SYSTEMS ]
@@ -18,8 +18,8 @@ sun and preventing the solar panel from producing power.
 import os, numpy as np
 from datetime import datetime
 from matplotlib import pyplot as plt
-from nominalpy import printer, types, Component, Object, Simulation
-from nominalpy.maths import value, astro, constants
+from nominalpy import printer, types, System, Object, Simulation
+from nominalpy.maths import astro, constants
 import credential_helper
 
 # Clear the terminal
@@ -38,88 +38,121 @@ printer.set_verbosity(printer.SUCCESS_VERBOSITY)
 credentials = credential_helper.fetch_credentials()
 
 # Create a simulation handle
-simulation: Simulation = Simulation(credentials)
+simulation: Simulation = Simulation.get(credentials)
 
 # Configure the Universe with an epoch
-universe: Object = simulation.get_system(types.UNIVERSE,
-    Epoch=datetime(2022, 1, 1))
+epoch = datetime(2022, 1, 1)
+universe: System = simulation.get_system(
+    types.SOLAR_SYSTEM,
+    Epoch=epoch
+)
+# validate the epoch against the value that is set
 
 # Compute the orbit from the Keplerian elements to a state vector of (position, velocity)
 orbit: tuple = astro.classical_to_vector_elements(6671000, 
-    inclination  = 35 * constants.D2R, 
-    true_anomaly = 16 * constants.D2R)
+    inclination=35 * constants.D2R,
+    true_anomaly=16 * constants.D2R
+)
 
 # Adds the spacecraft
-spacecraft: Component = simulation.add_component(types.SPACECRAFT,
+spacecraft: Object = simulation.add_object(
+    types.SPACECRAFT,
     TotalMass=750.0,
     TotalCenterOfMassB_B=np.array([0, 0, 0]),
     TotalMomentOfInertiaB_B=np.array([[900, 0, 0], [0, 800, 0], [0, 0, 600]]),
     Position=orbit[0],
-    Velocity=orbit[1])
+    Velocity=orbit[1]
+)
 
 # Adds a reaction wheel and the stack
-reaction_wheels: Component = simulation.add_component("ReactionWheelArray", spacecraft)
-rw1: Component = simulation.add_component("ReactionWheel", reaction_wheels, 
-    WheelSpinAxis_B=np.array([1, 0, 0]))
-rw2: Component = simulation.add_component("ReactionWheel", reaction_wheels, 
-    WheelSpinAxis_B=np.array([0, 1, 0]))
-rw3: Component = simulation.add_component("ReactionWheel", reaction_wheels, 
-    WheelSpinAxis_B=np.array([0, 0, 1]))
+reaction_wheels: Object = spacecraft.add_child("ReactionWheelArray")
+reaction_wheels.add_child(
+    "ReactionWheel",
+    WheelSpinAxis_B=np.array([1, 0, 0])
+)
+reaction_wheels.add_child(
+    "ReactionWheel",
+    WheelSpinAxis_B=np.array([0, 1, 0])
+)
+reaction_wheels.add_child(
+    "ReactionWheel",
+    WheelSpinAxis_B=np.array([0, 0, 1])
+)
 
 # Adds a simple navigator
-navigator: Component = simulation.add_component("SimpleNavigator", spacecraft)
+navigator = spacecraft.add_behaviour(
+    "SimpleNavigationSoftware"
+)
 
 # Adds a solar panel
-solar_panel: Component = simulation.add_component("SolarPanel", spacecraft, 
-    Area=0.01, Efficiency=0.23)
+solar_panel = spacecraft.add_child(
+    "SolarPanel",
+    Area=0.01,
+    Efficiency=0.23
+)
 
 # Add in a battery
-battery: Component = simulation.add_component("PowerStorage", spacecraft, 
-    ChargeFraction=0.2)
+battery = spacecraft.add_child(
+    "Battery",
+    ChargeFraction=0.2
+)
 
 # Add in a power bus and connect up the solar panel and battery
-bus: Component = simulation.add_component("PowerBus", spacecraft)
+bus = spacecraft.add_child(
+    "PowerBus",
+)
 bus.invoke("Connect", solar_panel.id, battery.id)
 
 # Adds in Sun Safe Pointing
-sun_point_fsw: Component = simulation.add_component("SunSafePointingSoftware", spacecraft,
+sun_point_fsw = spacecraft.add_behaviour(
+    "SunSafePointingSoftware",
     MinUnitMag=0.001,
     SmallAngle=0.001,
-    SunBodyVector=solar_panel.get_value("LocalUp"),
+    SunBodyVector=solar_panel.get("LocalUp"),
     Omega_RN_B=np.array([0, 0, 0]),
     SunAxisSpinRate=0.0,
-    In_NavAttMsg=navigator.get_value("Out_NavAttMsg"),
-    In_SunDirectionMsg=navigator.get_value("Out_NavAttMsg"))
+    In_NavigationAttitudeMsg=navigator.get_message("Out_NavigationAttitudeMsg"),
+    In_SunDirectionMsg=navigator.get_message("Out_NavigationAttitudeMsg")
+)
 
 # Add in the MRP feedback software
-mrp_feedback_fsw: Component = simulation.add_component("MRPFeedbackSoftware", spacecraft,
+mrp_feedback_fsw = spacecraft.add_behaviour(
+    "MRPFeedbackControlSoftware",
     K=3.5,
     P=30.0,
     Ki=-1.0,
     IntegralLimit=-20,
-    In_RWSpeedMsg=reaction_wheels.get_value("Out_RWSpeedMsg"),
-    In_RWArrayConfigMsg=reaction_wheels.get_value("Out_RWArrayConfigMsg"),
-    In_AttGuidMsg=sun_point_fsw.get_value("Out_AttGuidMsg"),
-    In_VehicleConfigMsg=spacecraft.get_value("Out_VehicleConfigMsg"))
+    In_RWArraySpeedMsg=reaction_wheels.get_message("Out_RWArraySpeedMsg"),
+    In_RWArrayConfigMsg=reaction_wheels.get_message("Out_RWArrayConfigMsg"),
+    In_AttitudeErrorMsg=sun_point_fsw.get_message("Out_AttitudeErrorMsg"),
+    In_BodyMassMsg=spacecraft.get_message("Out_BodyMassMsg")
+)
 
 # Add in the motor torque software
-motor_torque_fsw: Component = simulation.add_component("ReactionWheelMotorTorqueSoftware", spacecraft,
-    In_CmdTorqueBodyMsg=mrp_feedback_fsw.get_value("Out_CmdTorqueBodyMsg"),
-    In_RWArrayConfigMsg=reaction_wheels.get_value("Out_RWArrayConfigMsg"))
+motor_torque_fsw = spacecraft.add_behaviour(
+    "RWTorqueMappingSoftware",
+    In_CommandTorqueMsg=mrp_feedback_fsw.get_message("Out_CommandTorqueMsg"),
+    In_RWArrayConfigMsg=reaction_wheels.get_message("Out_RWArrayConfigMsg")
+)
 
 # Connect up to the reaction wheels
-reaction_wheels.set_value("In_ArrayMotorTorqueMsg", motor_torque_fsw.get_value("Out_ArrayMotorTorqueMsg"))
+reaction_wheels.set(
+    In_MotorTorqueArrayMsg=motor_torque_fsw.get_message("Out_MotorTorqueArrayMsg")
+)
 
+# set the interval at which data is sampled from the simulation
+simulation.set_tracking_interval(interval=10)
 # Register some messages to be stored in a database
-spacecraft.get_message("Out_EclipseMsg").subscribe(5.0)
-navigator.get_message("Out_NavAttMsg").subscribe(5.0)
-sun_point_fsw.get_message("Out_AttGuidMsg").subscribe(5.0)
-solar_panel.get_message("Out_PowerSourceMsg").subscribe(5.0)
-battery.get_message("Out_PowerStorageMsg").subscribe(5.0)
-reaction_wheels.get_message("Out_RWSpeedMsg").subscribe(5.0)
+simulation.track_object(spacecraft.get_model("Universe.SolarModel").get_message("Out_EclipseMsg"))
+simulation.track_object(navigator.get_message("Out_NavigationAttitudeMsg"))
+simulation.track_object(sun_point_fsw.get_message("Out_AttitudeErrorMsg"))
+simulation.track_object(solar_panel.get_message("Out_PowerSourceMsg"))
+simulation.track_object(battery.get_message("Out_BatteryMsg"))
+simulation.track_object(reaction_wheels.get_message("Out_RWArraySpeedMsg"))
+
 
 # Execute the simulation to be ticked
-simulation.tick(0.1, 5000)
+simulation.tick_duration(step=0.1, time=500)
 
 
 ##############################
@@ -130,10 +163,8 @@ simulation.tick(0.1, 5000)
 figure, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12, 6))
 
 # Plot the first set of data
-data = sun_point_fsw.get_message("Out_AttGuidMsg").fetch("Sigma_BR")
-times: np.ndarray = value.get_array(data, "time")
-sigma: np.ndarray = value.get_array(data, "Sigma_BR")
-ax1.plot(times, sigma)
+data = simulation.query_dataframe(sun_point_fsw.get_message("Out_AttitudeErrorMsg"))
+ax1.plot(data.loc[:, "Time"].values, data.loc[:, ["Sigma_BR_0", "Sigma_BR_1", "Sigma_BR_2"]].values)
 
 # Configure the axis
 ax1.set_title("Sun Pointing Error")
@@ -142,10 +173,8 @@ ax1.set_ylabel("Sigma [MRP]")
 ax1.legend(['X', 'Y', 'Z'])
 
 # Plot the second set of data of current attitude
-data = battery.get_message("Out_PowerStorageMsg").fetch("ChargeFraction")
-times: np.ndarray = value.get_array(data, "time")
-charge: np.ndarray = value.get_array(data, "ChargeFraction") * 100
-ax2.plot(times, charge)
+data = simulation.query_dataframe(battery.get_message("Out_BatteryMsg"))
+ax2.plot(data.loc[:, "Time"].values, data.loc[:, "ChargeFraction"].values * 100)
 
 # Configure the axis
 ax2.set_title("Battery Charge")
@@ -153,13 +182,10 @@ ax2.set_xlabel("Time [s]")
 ax2.set_ylabel("Charge [%]")
 
 # Plot the third set of data with power and visibility
-data = solar_panel.get_message("Out_PowerSourceMsg").fetch("Power")
-times: np.ndarray = value.get_array(data, "time")
-power: np.ndarray = value.get_array(data, "Power")
-data = spacecraft.get_message("Out_EclipseMsg").fetch("Visibility")
-visibility: np.ndarray = value.get_array(data, "Visibility")
-ax3.plot(times, power, label = "Power [W]", color = "orange")
-ax3.plot(times, visibility, label = "Sun Visibility", color = "pink")
+data = simulation.query_dataframe(solar_panel.get_message("Out_PowerSourceMsg"))
+ax3.plot(data.loc[:, "Time"].values, data.loc[:, "Power"].values, label="Power [W]", color="orange")
+data = simulation.query_dataframe(spacecraft.get_model("Universe.SolarModel").get_message("Out_EclipseMsg"))
+ax3.plot(data.loc[:, "Time"].values, data.loc[:, "Visibility"].values, label="Sun Visibility", color="pink")
 
 # Configure the axis
 ax3.set_title("Solar Panel Power")
@@ -168,11 +194,14 @@ ax3.set_ylabel("Incident Power [W]")
 ax3.legend()
 
 # Plot the fourth set of data with reaction wheel speeds
-data = reaction_wheels.get_message("Out_RWSpeedMsg").fetch("WheelSpeeds")
-times = value.get_array(data, "time")
+data = simulation.query_dataframe(reaction_wheels.get_message("Out_RWArraySpeedMsg"))
 for i in range(3):
-    speeds = value.get_array(data, "WheelSpeeds", index=i)
-    ax4.plot(times, speeds, label = "RW %d Speed [r/s]" % (i + 1), color="cyan")
+    ax4.plot(
+        data.loc[:, "Time"].values,
+        data.loc[:, f"WheelSpeeds_{i}"].values,
+        label="RW %d Speed [r/s]" % (i + 1),
+        color="cyan"
+    )
 
 # Configure the axis
 ax4.set_title("Reaction Wheel Speeds")
