@@ -17,19 +17,12 @@ towards the nadir of the Earth.
 '''
 
 # Import the relevant helper scripts
-import os, numpy as np
+import numpy as np
 from datetime import datetime
 from matplotlib import pyplot as plt
-from nominalpy import printer, types, Component, Object, Simulation, Message
-from nominalpy.maths import value, astro
+from nominalpy import printer, types, System, Object, Simulation, Message
+from nominalpy.maths import astro
 import credential_helper
-
-# Clear the terminal
-os.system('cls' if os.name == 'nt' else 'clear')
-
-# Set the verbosity
-printer.set_verbosity(printer.SUCCESS_VERBOSITY)
-
 
 
 ############################
@@ -40,12 +33,13 @@ printer.set_verbosity(printer.SUCCESS_VERBOSITY)
 credentials = credential_helper.fetch_credentials()
 
 # Create a simulation handle
-simulation: Simulation = Simulation(credentials)
+simulation: Simulation = Simulation.get(credentials)
 
 # Configure the Universe with an epoch
-universe: Object = simulation.get_system(
+universe: System = simulation.get_system(
     types.SOLAR_SYSTEM,
-    Epoch=datetime(2024, 1, 1))
+    Epoch=datetime(2024, 1, 1)
+)
 
 # Compute the orbit from the Keplerian elements to a state vector of (position, velocity)
 orbit: tuple = astro.classical_to_vector_elements(
@@ -54,82 +48,85 @@ orbit: tuple = astro.classical_to_vector_elements(
     inclination=33.3, 
     right_ascension=48.2,
     argument_of_periapsis=347.8,
-    true_anomaly=155.3)
+    true_anomaly=155.3
+)
 
 # Adds the spacecraft
-spacecraft: Component = simulation.add_component(types.SPACECRAFT,
+spacecraft: Object = simulation.add_object(
+    types.SPACECRAFT,
     TotalMass=750.0,
     TotalCenterOfMassB_B=np.array([0, 0, 0]),
     TotalMomentOfInertiaB_B=np.array([[900, 0, 0], [0, 800, 0], [0, 0, 600]]),
     Position=orbit[0],
     Velocity=orbit[1],
-    AttitudeRate=np.array([0.0, 0.0, 0.0]))
+    AttitudeRate=np.array([0.0, 0.0, 0.0])
+)
 
 # Adds a reaction wheel and the stack
-reaction_wheels: Component = simulation.add_component("ReactionWheelArray", spacecraft)
-rw1: Component = simulation.add_component("ReactionWheel", reaction_wheels, 
-    WheelSpinAxis_B=np.array([1, 0, 0]))
-rw2: Component = simulation.add_component("ReactionWheel", reaction_wheels, 
-    WheelSpinAxis_B=np.array([0, 1, 0]))
-rw3: Component = simulation.add_component("ReactionWheel", reaction_wheels, 
-    WheelSpinAxis_B=np.array([0, 0, 1]))
+reaction_wheels: Object = spacecraft.add_child("ReactionWheelArray")
+rw1: Object = reaction_wheels.add_child(
+    "ReactionWheel",
+    WheelSpinAxis_B=np.array([1, 0, 0])
+)
+rw2: Object = reaction_wheels.add_child(
+    "ReactionWheel",
+    WheelSpinAxis_B=np.array([0, 1, 0])
+)
+rw3: Object = reaction_wheels.add_child(
+    "ReactionWheel",
+    WheelSpinAxis_B=np.array([0, 0, 1])
+)
 
 # Adds in a solar panel for SUN-pointing
-solar_panel: Component = simulation.add_component("SolarPanel", spacecraft,
+solar_panel: Object = spacecraft.add_child(
+    "SolarPanel",
     Efficiency=0.2,
-    Area=0.06)
+    Area=0.06
+)
 solar_panel.invoke("RollDegrees", 90.0)
 
 # Add in a thruster for VELOCITY-pointing
-thruster: Component = simulation.add_component("Thruster", spacecraft)
+thruster: Object = spacecraft.add_child("Thruster")
 thruster.invoke("PitchDegrees", 180.0)
 
 # Add in a camera for NADIR-pointing
-camera: Component = simulation.add_component("Camera", spacecraft)
+camera: Object = spacecraft.add_child("Camera")
 camera.invoke("PitchDegrees", 90.0)
 
 # Adds a guidance computer
-computer: Component = simulation.add_component("GuidanceComputer", spacecraft)
-
-# Create a command message
-command_msg: Message = simulation.create_message("SoftwareChainMessage",
-    PointingMode="INERTIAL_POINTING",
-    ControllerMode="MRP",
-    MappingMode="REACTION_WHEELS")
+computer: Object = spacecraft.add_child("GuidanceComputer")
 
 # Assign the message to the computer
-computer.set_value("In_SoftwareChainMsg", command_msg)
+computer.set(
+    PointingMode="Inertial",
+    ControllerMode="MRP",
+    MappingMode="ReactionWheels",
+)
 
-# Configure the PID constants of the MRP controller
-computer.invoke("ConfigureMRPController",
-    3.5,    # K
-    30.0,   # P
-    -1.0,   # Ki
-    -20.0,  # Integral Limit
-    np.array([0, 0, 0])) # Known Torque
-
+# set the tracking interval for polling data during the simulation
+simulation.set_tracking_interval(interval=5.0)
 # Register some messages to be stored in a database
-spacecraft.get_message("Out_BodyStatesMsg").subscribe(5.0)
-solar_panel.get_message("Out_PowerSourceMsg").subscribe(5.0)
-reaction_wheels.get_message("Out_RWSpeedMsg").subscribe(5.0)
+simulation.track_object(spacecraft.get_message("Out_SpacecraftStateMsg"))
+simulation.track_object(solar_panel.get_message("Out_PowerSourceMsg"))
+simulation.track_object(reaction_wheels.get_message("Out_RWArraySpeedMsg"))
 
 # Execute the simulation for some time
 simulation.tick_duration(100, 0.1)
 
 # Switch the pointing mode to make the solar panels face the sun
-command_msg.set_value("PointingMode", "SUN_POINTING")
+computer.set(PointingMode="Sun")
 
 # Execute the simulation for some time
 simulation.tick_duration(300, 0.1)
 
 # Switch the pointing mode to make the thruster face the velocity vector
-command_msg.set_value("PointingMode", "VELOCITY_POINTING")
+computer.set(PointingMode="Velocity")
 
 # Execute the simulation for some time
 simulation.tick_duration(300, 0.1)
 
 # Switch the pointing mode to NADIR pointing to make the camera face the ground
-command_msg.set_value("PointingMode", "NADIR_POINTING")
+computer.set(PointingMode="Nadir")
 
 # Execute the simulation for some time
 simulation.tick_duration(300, 0.1)
@@ -151,10 +148,14 @@ ax3 = figure.add_subplot(gs[1, 1])
 figure.set_size_inches(12, 6)
 
 # Plot the first set of data, which shows the sigma state and the commands
-data = spacecraft.get_message("Out_BodyStatesMsg").fetch("Sigma_BN")
-times: np.ndarray = value.get_array(data, "time")
-sigma: np.ndarray = value.get_array(data, "Sigma_BN")
-ax1.plot(times, sigma)
+df = simulation.query_dataframe(spacecraft.get_message("Out_SpacecraftStateMsg"))
+times: np.ndarray = df.loc[:, "Time"].values
+sigma_0: np.ndarray = df.loc[:, "Sigma_BN_0"].values
+sigma_1: np.ndarray = df.loc[:, "Sigma_BN_1"].values
+sigma_2: np.ndarray = df.loc[:, "Sigma_BN_2"].values
+ax1.plot(times, sigma_0)
+ax1.plot(times, sigma_1)
+ax1.plot(times, sigma_2)
 
 # Configure the axis
 ax1.set_title("Current Attitude")
@@ -179,9 +180,9 @@ ax1.axvspan(700, 1000, color='cyan', alpha=0.15)
 ax1.text(850, -0.8, 'NADIR POINTING', fontsize=12, ha='center')
 
 # Plot the power source data from the solar power
-data = solar_panel.get_message("Out_PowerSourceMsg").fetch("Power")
-times: np.ndarray = value.get_array(data, "time")
-power: np.ndarray = value.get_array(data, "Power")
+df = simulation.query_dataframe(solar_panel.get_message("Out_PowerSourceMsg"))
+times: np.ndarray = df.loc[:, "Time"]
+power: np.ndarray = df.loc[:, "Power"]
 ax2.plot(times, power)
 
 # Configure the axis
@@ -190,11 +191,11 @@ ax2.set_xlabel("Time [s]")
 ax2.set_ylabel("Power [W]")
 
 # Plot the fourth set of data with reaction wheel speeds
-data = reaction_wheels.get_message("Out_RWSpeedMsg").fetch("WheelSpeeds")
-times = value.get_array(data, "time")
-for i in range(3):
-    speeds = value.get_array(data, "WheelSpeeds", index=i)
-    ax3.plot(times, speeds, label = "RW %d Speed [r/s]" % (i + 1), color="cyan")
+df = simulation.query_dataframe(reaction_wheels.get_message("Out_RWArraySpeedMsg"))
+times = df.loc[:, "Time"].values
+ax3.plot(times, df.loc[:, "WheelSpeeds_0"], label="RW 1 Speed [r/s]", color="cyan")
+ax3.plot(times, df.loc[:, "WheelSpeeds_1"], label="RW 2 Speed [r/s]", color="cyan")
+ax3.plot(times, df.loc[:, "WheelSpeeds_2"], label="RW 3 Speed [r/s]", color="cyan")
 
 # Configure the axis
 ax3.set_title("Reaction Wheel Speeds")
