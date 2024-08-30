@@ -40,14 +40,13 @@ credentials = credential_helper.fetch_credentials()
 # Create a simulation handle
 simulation: Simulation = Simulation.get(credentials)
 
-# TODO: Configure the Universe with an epoch
+# Configure the Universe with an epoch
 epoch = datetime(2022, 1, 1)
 universe: System = simulation.get_system(
     types.SOLAR_SYSTEM,
     Epoch=epoch
 )
 # validate the epoch against the value that is set
-
 
 # Compute the orbit from the Keplerian elements to a state vector of (position, velocity)
 orbit: tuple = astro.classical_to_vector_elements(6671000, 
@@ -142,10 +141,9 @@ reaction_wheels.set(
 )
 
 # set the interval at which data is sampled from the simulation
-simulation.set_tracking_interval(interval=0.1)
+simulation.set_tracking_interval(interval=10)
 # Register some messages to be stored in a database
 simulation.track_object(spacecraft.get_model("Universe.SolarModel").get_message("Out_EclipseMsg"))
-# universe.get_message("Out_EclipseMsg").subscribe(5.0)
 simulation.track_object(navigator.get_message("Out_NavigationAttitudeMsg"))
 simulation.track_object(sun_point_fsw.get_message("Out_AttitudeErrorMsg"))
 simulation.track_object(solar_panel.get_message("Out_PowerSourceMsg"))
