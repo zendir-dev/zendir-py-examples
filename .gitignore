@@ -161,3 +161,6 @@ cython_debug/
 
 # Ensures that this file is not tracked with changes again
 scenarios/credential_helper.py
+*.xml
+
+*.iml
