@@ -149,7 +149,7 @@ for i, sc in enumerate(spacecraft):
     ephem_converter_fsws.append(
         sc.add_behaviour(
             "PlanetEphemerisTranslationSoftware",
-            In_SpicePlanetStateMsg=simulation.get_planet("Earth").get_message("Out_SpicePlanetStateMsg"),
+            In_PlanetStateMsg=simulation.get_planet("Earth").get_message("Out_PlanetStateMsg"),
         )
     )
     # add the LVLH reference frame flight software

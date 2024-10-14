@@ -178,7 +178,7 @@ navigator: Object = spacecraft.add_behaviour("SimpleNavigationSoftware")
 # Ephemeris conversion software
 ephem_converter_fsw = spacecraft.add_behaviour(
     "PlanetEphemerisTranslationSoftware",
-    In_SpicePlanetStateMsg=simulation.get_planet("Earth").get_message("Out_SpicePlanetStateMsg")
+    In_PlanetStateMsg=simulation.get_planet("Earth").get_message("Out_PlanetStateMsg")
 )
 
 # Velocity pointing software
@@ -186,7 +186,7 @@ vel_point_fsw = spacecraft.add_behaviour(
     "VelocityPointingSoftware",
     In_NavigationTranslationMsg=navigator.get_message("Out_NavigationTranslationMsg"),
     In_EphemerisMsg=ephem_converter_fsw.get_message("Out_EphemerisMsg"),
-    In_SpicePlanetStateMsg=simulation.get_planet("Earth").get_message("Out_SpicePlanetStateMsg")
+    In_PlanetStateMsg=simulation.get_planet("Earth").get_message("Out_PlanetStateMsg")
 )
 
 # Attitude tracking error software

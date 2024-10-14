@@ -83,7 +83,7 @@ for axis in [np.array([1, 0, 0]), np.array([0, 1, 0]), np.array([0, 0, 1])]:
 navigator = spacecraft.add_behaviour(
     "SimpleNavigationSoftware",
     In_SpacecraftStateMsg=spacecraft.get_message("Out_SpacecraftStateMsg"),
-    In_SunSpicePlanetStateMsg=simulation.get_planet("sun").get_message("Out_SpicePlanetStateMsg")
+    In_SunPlanetStateMsg=simulation.get_planet("sun").get_message("Out_PlanetStateMsg")
 )
 
 # Create the coarse sun sensor constellation
