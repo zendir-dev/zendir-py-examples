@@ -21,7 +21,6 @@ axis of the spacecraft's orbit to show the orbit raising effect of the thruster.
 import numpy as np
 from matplotlib import pyplot as plt
 import credential_helper
-import os
 from datetime import datetime
 
 from nominalpy import types

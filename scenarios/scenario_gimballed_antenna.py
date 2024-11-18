@@ -2,7 +2,6 @@ import os
 from datetime import datetime
 
 import numpy as np
-import pytest
 from matplotlib import pyplot as plt
 from nominalpy.maths import astro
 from nominalpy import types, Object, Simulation

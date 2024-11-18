@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import pytest
 from datetime import datetime
 from nominalpy.maths import astro
 from nominalpy.maths.data import kilobytes_to_bits

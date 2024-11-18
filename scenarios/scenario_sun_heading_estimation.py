@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from datetime import datetime
 
 from matplotlib import pyplot as plt
