@@ -1,28 +1,42 @@
-# Advanced Constellation
+#!/usr/bin/env python3
+
+'''
+                    [ NOMINAL SYSTEMS ]
+This code is developed by Nominal Systems to aid with communication 
+to the public API. All code is under the the license provided along
+with the 'nominalpy' module. Copyright Nominal Systems, 2024.
+
+This example showcases how the constellation utility functions can be 
+leveraged to instantiate a constellation. In this example, a co-planar 
+constellation of five spacecraft is created. Each spacecraft is initialised 
+with a random pointing angle and then commanded to point consistently 
+according to their local Local-Vertical, Local-Horizontal frame.
+'''
+
+# Import the relevant helper scripts
 from datetime import datetime
-
-# Introduction
-# This example showcases how the constellation utility functions can be leveraged to instantiate a constellation.
-# In this example, a co-planar constellation of five spacecraft is created.
-# Each spacecraft is initialised with a random pointing angle and then commanded to point consistently according to their local Local-Vertical, Local-Horizontal frame.
-
-import numpy as np
-import pandas as pd
+import os, numpy as np, pandas as pd
 from matplotlib import pyplot as plt
-
-from nominalpy import types
+from nominalpy import types, printer
 from nominalpy.maths import astro, utils
 from nominalpy.maths.constants import RPM
-# from nominalpy.maths.utils import random_mrp
 from nominalpy.maths.constellations import CoplanarCircular
 from nominalpy import Simulation, Object
-
 import credential_helper
 
-# Scenario Configuration
-# The scenario is configured with the following parameters:
+# Clear the terminal
+os.system('cls' if os.name == 'nt' else 'clear')
 
-# define the configuration of the scenario
+# Set the verbosity
+printer.set_verbosity(printer.SUCCESS_VERBOSITY)
+
+
+
+############################
+# SIMULATION CONFIGURATION #
+############################
+
+# Define the configuration of the scenario
 num_spacecraft: int = 5
 sma0: float = 7000e3  # the initial semi-major axis of the spacecraft's orbit, meters
 inc0: float = np.radians(45)  # the initial inclination of the spacecraft's orbit, radians
@@ -53,7 +67,6 @@ simulation: Simulation = Simulation.get(credentials)
 
 # Creating the Universe
 # Every simulation has a universe object. We can configure the universe to have a specific epoch.
-
 universe: Object = simulation.get_system(
     types.SOLAR_SYSTEM,
     Epoch=datetime(2021, 1, 15, hour=0, minute=28, second=30)
@@ -73,7 +86,6 @@ cons = CoplanarCircular(
     num_satellites=num_spacecraft,
     init_classical_elements=True,
 )
-
 
 # The initial state of each spacecraft in the orbit can be returned as orbital elements or state vectors.
 # They can also be calculated as osculating orbital values or the equivalent mean orbital elements/mean state vector.
@@ -215,6 +227,12 @@ for k, sc in enumerate(spacecraft):
 
 # run the scenario
 simulation.tick_duration(time=400, step=0.1)
+
+
+
+##############################
+# DATA ANALYSIS AND PLOTTING #
+##############################
 
 # Fetching and Analysing the Data
 # The data from the simulation can be fetched and analysed. The data can be fetched as a dataframe and then analysed

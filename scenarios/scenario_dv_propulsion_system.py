@@ -18,15 +18,20 @@ The scenario plots the attitude error over time to showcasing that the desired p
 axis of the spacecraft's orbit to show the orbit raising effect of the thruster.
 '''
 
-import numpy as np
+# Import the relevant helper scripts
+import os, numpy as np
 from matplotlib import pyplot as plt
 import credential_helper
 from datetime import datetime
-
-from nominalpy import types
-from nominalpy import System, Object, Simulation, printer
+from nominalpy import System, Object, Simulation, printer, types
 from nominalpy.maths import astro, utils
 from nominalpy.maths.constants import RPM
+
+# Clear the terminal
+os.system('cls' if os.name == 'nt' else 'clear')
+
+# Set the verbosity
+printer.set_verbosity(printer.SUCCESS_VERBOSITY)
 
 
 
@@ -265,6 +270,12 @@ while simulation.get_time() < 1200:
         )
         has_fired = True
 
+
+
+##############################
+# DATA ANALYSIS AND PLOTTING #
+##############################
+
 # Fetch the data for the simulation
 df_body_states = simulation.query_dataframe(spacecraft.get_message("Out_SpacecraftStateMsg"))
 df_body_mass = simulation.query_dataframe(spacecraft.get_message("Out_BodyMassMsg"))
@@ -332,6 +343,17 @@ ax3.plot(
 ax3.set_xlabel("Time [s]")
 ax3.set_ylabel("Propellant Mass [kg]")
 ax3.legend()
+
+# Plot the attitude of the spacecraft, using the 'Sigma_BN' from the spacecraft state message
+df_body_states.plot(
+    y=["Sigma_BN_0", "Sigma_BN_1", "Sigma_BN_2"],
+    color=["red", "green", "blue"],
+    xlabel="Time [s]",
+    ylabel="Sigma [MRP]",
+    legend=True,
+    title="Spacecraft Attitude",
+    ax=ax4
+)
 
 # Display the plots
 plt.tight_layout()
