@@ -36,6 +36,9 @@ printer.set_verbosity(printer.SUCCESS_VERBOSITY)
 # SIMULATION CONFIGURATION #
 ############################
 
+# Create a simulation handle with the credentials
+simulation: Simulation = Simulation.get(credential_helper.fetch_credentials())
+
 # Define the configuration of the scenario
 num_spacecraft: int = 5
 sma0: float = 7000e3  # the initial semi-major axis of the spacecraft's orbit, meters
@@ -54,16 +57,6 @@ attitude_tracking_error_fsws: list = []
 mrp_feedback_fsws: list = []
 lvlh_fsws: list = []
 ephem_converter_fsws: list = []
-
-# Simulation Authentication
-# The simulation is authenticated using the credentials provided by Nominal Systems.
-# The api key associated with this simulation can be created/found by creating an account on Nominal Systems' website.
-
-# Construct the credentials
-credentials = credential_helper.fetch_credentials()
-
-# Create a simulation handle
-simulation: Simulation = Simulation.get(credentials)
 
 # Creating the Universe
 # Every simulation has a universe object. We can configure the universe to have a specific epoch.
@@ -118,9 +111,8 @@ def random_mrp():
     # return the random mrp
     return mrp
 
-
+# Create the spacecraft and initialise it with its orbit
 for _, vectors in cons.init_state_vectors_osculating(planet="earth").items():
-    # create the spacecraft and initialise it with its orbit
     sc = simulation.add_object(
         types.SPACECRAFT,
         TotalMass=4.0,  # kg
@@ -180,6 +172,7 @@ for i, sc in enumerate(spacecraft):
             In_AttitudeReferenceMsg=lvlh_fsws[i].get_message("Out_AttitudeReferenceMsg"),
         )
     )
+
     # add the MRP feedback software
     ki = -1.0
     decay_time = 10.0
@@ -196,6 +189,7 @@ for i, sc in enumerate(spacecraft):
             In_BodyMassMsg=sc.get_message("Out_BodyMassMsg").id,
         )
     )
+
     # connect the external force torque to the mrp feedback software
     # add the external force torque
     ext_torque.append(
@@ -210,7 +204,6 @@ for i, sc in enumerate(spacecraft):
 #   are recorded.
 # Please note, that the messages will update within the simulation according to the tick size, however, but will only
 #   be recorded and returned to users based at a frequency dictated by the subscribe step.
-
 subscribe_step = 5.0
 for k, sc in enumerate(spacecraft):
     simulation.set_tracking_interval(interval=subscribe_step)

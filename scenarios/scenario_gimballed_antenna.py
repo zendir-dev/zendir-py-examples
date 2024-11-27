@@ -34,11 +34,8 @@ printer.set_verbosity(printer.SUCCESS_VERBOSITY)
 # SIMULATION CONFIGURATION #
 ############################
 
-# Construct the credentials
-credentials = credential_helper.fetch_credentials()
-
-# Create a simulation handle
-simulation: Simulation = Simulation.get(credentials)
+# Create a simulation handle with the credentials
+simulation: Simulation = Simulation.get(credential_helper.fetch_credentials())
 
 # Define the constants for the scenario
 LATITUDE: float = 10.0      # deg

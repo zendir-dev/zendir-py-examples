@@ -33,11 +33,8 @@ printer.set_verbosity(printer.SUCCESS_VERBOSITY)
 # SIMULATION CONFIGURATION #
 ############################
 
-# Construct the credentials
-credentials = credential_helper.fetch_credentials()
-
-# Create a simulation handle
-simulation: Simulation = Simulation.get(credentials)
+# Create a simulation handle with the credentials
+simulation: Simulation = Simulation.get(credential_helper.fetch_credentials())
 
 # Configure the Solar System with an epoch
 epoch = dt.datetime(2024, 1, 1, 4, 55, 0)
@@ -187,5 +184,4 @@ ax4_2.axis('off')
 fig.text(0.88, 0.10, "CCD Target at 550s\n(INACCESSIBLE)", ha="center", fontsize=10)
 
 # Show the plots
-plt.tight_layout()
 plt.show()

@@ -13,29 +13,30 @@ the receiver, which is then plotted. The data link budget is used to
 calculate the signal-to-noise ratio (SNR) and the bit error rate (BER).
 '''
 
+# Import the relevant helper scripts
 import matplotlib.pyplot as plt
-import numpy as np
+import os, numpy as np
 from datetime import datetime
 from nominalpy import printer
 from nominalpy.maths import astro
 from nominalpy.maths.data import kilobytes_to_bits
 from nominalpy import types, Object, Simulation, System, printer
-from credential_helper import fetch_credentials
+import credential_helper
 
-# Construct the credentials
-credentials = fetch_credentials()
+# Clear the terminal
+os.system('cls' if os.name == 'nt' else 'clear')
 
 # Set the verbosity
 printer.set_verbosity(printer.SUCCESS_VERBOSITY)
-
-# Create a simulation handle
-simulation: Simulation = Simulation.get(credentials)
 
 
 
 ############################
 # SIMULATION CONFIGURATION #
 ############################
+
+# Create a simulation handle with the credentials
+simulation: Simulation = Simulation.get(credential_helper.fetch_credentials())
 
 # Configure the solar system with an epoch
 epoch = datetime(2022, 1, 1)
