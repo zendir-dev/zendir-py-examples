@@ -1,17 +1,26 @@
-import os
+#!/usr/bin/env python3
 
-import numpy as np
-import pytest
+'''
+                    [ NOMINAL SYSTEMS ]
+This code is developed by Nominal Systems to aid with communication 
+to the public API. All code is under the the license provided along
+with the 'nominalpy' module. Copyright Nominal Systems, 2024.
+
+This example shows a spacecraft with a momentum management system that
+is used to control the spacecraft's attitude. The spacecraft has a set
+of reaction wheels and magnetic torque bars that are used to control
+the spacecraft's attitude. The spacecraft is then controlled to point
+at the sun.
+'''
+
+# Import the relevant helper scripts
+import os, numpy as np
 from datetime import datetime
-
 from matplotlib import pyplot as plt
 from nominalpy.maths import astro
-from nominalpy import types, Object, Simulation
+from nominalpy import types, Object, Simulation, printer, System
 from nominalpy.maths.constants import RPM
-from nominalpy.utils import printer
-
 import credential_helper
-
 
 # Clear the terminal
 os.system('cls' if os.name == 'nt' else 'clear')
@@ -20,44 +29,42 @@ os.system('cls' if os.name == 'nt' else 'clear')
 printer.set_verbosity(printer.SUCCESS_VERBOSITY)
 
 
+
 ############################
 # SIMULATION CONFIGURATION #
 ############################
 
-# Construct the credentials
-credentials = credential_helper.fetch_credentials()
-
-# Create a simulation handle
-simulation: Simulation = Simulation.get(credentials)
+# Create a simulation handle with the credentials
+simulation: Simulation = Simulation.get(credential_helper.fetch_credentials())
 
 # Configure the Universe with an epoch
-universe: Object = simulation.get_system(
+solar_system: System = simulation.get_system(
     types.SOLAR_SYSTEM,
     Epoch=datetime(2022, 1, 1)
 )
 
-# planet, G10, G11, H11, minReach, maxReach
-universe.invoke(
+# Add the Earth's magnetic field
+solar_system.invoke(
     "CreateMagneticFieldCenteredDipole",
     "earth",
-    -15463,
-    -1159,
-    2908.5,
-    -1,
-    -1
+    -15463,     # G10
+    -1159,      # G11
+    2908.5,     # H11
+    -1,         # MinReach (not used)
+    -1          # MaxReach (not used)
 )
 
 # Define the orbital elements
 orbit: tuple = astro.classical_to_vector_elements_deg(
-    semi_major_axis=6778.14 * 1000,  # meters
+    semi_major_axis=6778.14 * 1000,     # meters
     eccentricity=0.0,
-    inclination=45.0,  # degrees
-    right_ascension=60.0,  # degrees
-    argument_of_periapsis=0.0,  # degrees
-    true_anomaly=0.0  # degrees
+    inclination=45.0,                   # degrees
+    right_ascension=60.0,               # degrees
+    argument_of_periapsis=0.0,          # degrees
+    true_anomaly=0.0                    # degrees
 )
 
-# Define the spacecraft properties
+# Define the spacecraft with the current orbit
 spacecraft: Object = simulation.add_object(
     types.SPACECRAFT,
     TotalMass=10.0,  # kg
@@ -74,101 +81,93 @@ spacecraft: Object = simulation.add_object(
     OverrideMass=True
 )
 
-
-# Adding the magnetic torque bar array and reaction wheels
+# Add the magnetic torque bar array and reaction wheels, with four bars
 mtb_array: Object = spacecraft.add_child("MagneticTorqueBarArray")
-
-max_dipoles = 0.1
-for axis in [np.array([1, 0, 0]), np.array([0, 1, 0]), np.array([0, 0, 1]),
-             np.array([0.70710678, 0.70710678, 0.0])]:
+mtb_axes: list = [
+    np.array([1, 0, 0]), 
+    np.array([0, 1, 0]), 
+    np.array([0, 0, 1]), 
+    np.array([0.70710678, 0.70710678, 0.0])
+]
+for axis in mtb_axes:
     mtb = mtb_array.add_child(
         "MagneticTorqueBar",
-        MaxDipoles=max_dipoles,
+        MaxDipoles=0.1,     # Am^2
         BarAxis_B=axis
     )
-    assert mtb.get("MaxDipoles") == max_dipoles
-    assert np.allclose(mtb.get("BarAxis_B"), axis)
 
-# add the reaction wheels
+# Add the reaction wheels, with four wheels
 reaction_wheels: Object = spacecraft.add_child("ReactionWheelArray")
-
-rw_mass = 0.130
-beta = 52.0 * np.pi / 180.0
-# define the reaction wheel properties
-omega = 0.0
-omega_max = 5000.0
-u_max = 0.004
-u_min = 0.0
-max_momentum = 0.015
-f_coulomb = 0.0
-f_static = 0.0
-beta_static = -1.0
-c_viscous = 0.0
-u_s = 1E-7
-u_d = 1E-8
-
-for axis in [
-    np.array([0, np.cos(beta), np.sin(beta)]),
-    np.array([0, np.sin(beta), -np.cos(beta)]),
-    np.array([np.cos(beta), -np.sin(beta), 0]),
-    np.array([-np.cos(beta), -np.sin(beta), 0])
-]:
+RW_BETA = 52.0 * np.pi / 180.0
+rw_axes: list = [
+    np.array([0, np.cos(RW_BETA), np.sin(RW_BETA)]),
+    np.array([0, np.sin(RW_BETA), -np.cos(RW_BETA)]),
+    np.array([np.cos(RW_BETA), -np.sin(RW_BETA), 0]),
+    np.array([-np.cos(RW_BETA), -np.sin(RW_BETA), 0])
+]
+for axis in rw_axes:
     reaction_wheels.add_child(
         "ReactionWheel",
-        Mass=rw_mass,
+        Mass=0.130,
         WheelPosition_B=np.array([0, 0, 0]),
         WheelSpinAxis_B=axis,
         WheelModelType="Balanced",
-        Omega=omega * RPM,
-        OmegaMax=omega_max * RPM,
-        MaxTorque=u_max,
-        MinTorque=u_min,
-        MaxMomentum=max_momentum,
-        FrictionCoulomb=f_coulomb,
-        FrictionStatic=f_static,
-        BetaStatic=beta_static,
-        FrictionViscous=c_viscous,
-        StaticImbalance=u_s,
-        DynamicImbalance=u_d
+        Omega=0.0 * RPM,
+        OmegaMax=5000.0 * RPM,
+        MaxTorque=0.004,
+        MinTorque=0.0,
+        MaxMomentum=0.015,
+        FrictionCoulomb=0.0,
+        FrictionStatic=0.0,
+        BetaStatic=-1.0,
+        FrictionViscous=0.0,
+        StaticImbalance=1.0E-7,
+        DynamicImbalance=1.0E-8
     )
 
+# Add the spacecraft's navigation software
+navigator_fsw: Object = spacecraft.add_behaviour("SimpleNavigationSoftware")
 
-navigator: Object = spacecraft.add_behaviour("SimpleNavigationSoftware")
+# Add the spacecraft's magnetometer
 tam: Object = spacecraft.add_child(
     "Magnetometer",
     NoiseStd=np.array([0.0, 0.0, 0.0])
 )
 
+# Add the inertial pointing software
 inertial_hold_fsw: Object = spacecraft.add_behaviour(
     "InertialPointingSoftware",
     Sigma_RN=np.array([0.0, 0.0, 0.0])
 )
 
+# Add the attitude tracking error software
 attitude_tracking_error_fsw: Object = spacecraft.add_behaviour(
     "AttitudeReferenceErrorSoftware",
-    In_NavigationAttitudeMsg=navigator.get_message("Out_NavigationAttitudeMsg"),
+    In_NavigationAttitudeMsg=navigator_fsw.get_message("Out_NavigationAttitudeMsg"),
     In_AttitudeReferenceMsg=inertial_hold_fsw.get_message("Out_AttitudeReferenceMsg")
 )
 
-ki = -1.0
+# Add the MRP feedback control software
 mrp_feedback_fsw: Object = spacecraft.add_behaviour(
     "MRPFeedbackControlSoftware",
     K=0.0001,
     P=0.002,
-    Ki=ki,
-    IntegralLimit=2.0 / ki * 0.1,
+    Ki=-1.0,
+    IntegralLimit=2.0 / -1.0 * 0.1,
     In_AttitudeErrorMsg=attitude_tracking_error_fsw.get_message("Out_AttitudeErrorMsg"),
     In_RWArraySpeedMsg=reaction_wheels.get_message("Out_RWArraySpeedMsg"),
     In_RWArrayConfigMsg=reaction_wheels.get_message("Out_RWArrayConfigMsg")
 )
 
-mm_software: Object = spacecraft.add_behaviour(
+# Add the momentum management software
+momentum_fsw: Object = spacecraft.add_behaviour(
     "RWMomentumControlSoftware",
     Kp=0.003,
     In_RWArrayConfigMsg=reaction_wheels.get_message("Out_RWArrayConfigMsg"),
     In_RWArraySpeedMsg=reaction_wheels.get_message("Out_RWArraySpeedMsg")
 )
 
+# Add the dipole mapping software
 dipole_mapping_fsw: Object = spacecraft.add_behaviour(
     "MTBDipoleMappingSoftware",
     DipoleMapping=np.array([
@@ -179,21 +178,24 @@ dipole_mapping_fsw: Object = spacecraft.add_behaviour(
     ]),
 )
 
-mtb_feedforward: Object = spacecraft.add_behaviour(
+# Add the feedforward mapping software
+mtb_feedforward_fsw: Object = spacecraft.add_behaviour(
     "MTBFeedforwardMappingSoftware",
     In_DipoleArrayMsg=dipole_mapping_fsw.get_message("Out_DipoleArrayMsg"),
     In_CommandTorqueMsg=mrp_feedback_fsw.get_message("Out_CommandTorqueMsg"),
     In_MTBArrayConfigMsg=mtb_array.get_message("Out_MTBArrayConfigMsg")
 )
 
+# Add the reaction wheel torque mapping software
 rw_motor_torque_fsw: Object = spacecraft.add_behaviour(
     "RWTorqueMappingSoftware",
     ControlAxes_B=np.eye(3),
     In_RWArrayConfigMsg=reaction_wheels.get_message("Out_RWArrayConfigMsg"),
-    In_CommandTorqueMsg=mtb_feedforward.get_message("Out_CommandTorqueMsg")
+    In_CommandTorqueMsg=mtb_feedforward_fsw.get_message("Out_CommandTorqueMsg")
 )
 
-rw_null_space_software: Object = spacecraft.add_behaviour(
+# Add the reaction wheel null space software
+rw_nullspace_fsw: Object = spacecraft.add_behaviour(
     "RWNullSpaceMappingSoftware",
     OmegaGain=0.000003,
     In_RWArrayConfigMsg=reaction_wheels.get_message("Out_RWArrayConfigMsg"),
@@ -201,101 +203,95 @@ rw_null_space_software: Object = spacecraft.add_behaviour(
     In_MotorTorqueArrayMsg=rw_motor_torque_fsw.get_message("Out_MotorTorqueArrayMsg")
 )
 
+# Add the TAM encoder software
 tam_encoder_fsw: Object = spacecraft.add_behaviour(
     "TAMEncoderSoftware",
-    In_TAMDataMsg=tam.get_message("Out_TAMDataMsg"),
-    # DCM_BS=np.eye(3)
+    In_TAMDataMsg=tam.get_message("Out_TAMDataMsg")
 )
 
+# Add the torque to dipole conversion software
 torque_to_dipole_fsw: Object = spacecraft.add_behaviour(
     "TorqueDipoleConversionSoftware",
     In_TAMBodyMsg=tam_encoder_fsw.get_message("Out_TAMBodyMsg"),
-    In_CommandTorqueMsg=mm_software.get_message("Out_CommandTorqueMsg")
+    In_CommandTorqueMsg=momentum_fsw.get_message("Out_CommandTorqueMsg")
 )
 
+# Reconnect the messages for the other software
 dipole_mapping_fsw.set(
     In_CommandDipoleMsg=torque_to_dipole_fsw.get_message("Out_CommandDipoleMsg"),
     In_MTBArrayConfigMsg=mtb_array.get_message("Out_MTBArrayConfigMsg")
 )
-mtb_array.set(In_DipoleArrayMsg=dipole_mapping_fsw.get_message("Out_DipoleArrayMsg"))
+mtb_feedforward_fsw.set(In_TAMBodyMsg=tam_encoder_fsw.get_message("Out_TAMBodyMsg"))
 
-mtb_feedforward.set(In_TAMBodyMsg=tam_encoder_fsw.get_message("Out_TAMBodyMsg"))
-reaction_wheels.set(
-    In_MotorTorqueArrayMsg=rw_null_space_software.get_message("Out_MotorTorqueArrayMsg")
-)
+# Connect the messages for the MTB array and reaction wheels
+mtb_array.set(In_DipoleArrayMsg=dipole_mapping_fsw.get_message("Out_DipoleArrayMsg"))
+reaction_wheels.set(In_MotorTorqueArrayMsg=rw_nullspace_fsw.get_message("Out_MotorTorqueArrayMsg"))
 
 # Set the data tracking interval for the simulation
 simulation.set_tracking_interval(interval=60)
 
 # Register data tracking for various messages from spacecraft components
 simulation.track_object(reaction_wheels.get_message("Out_RWArraySpeedMsg"))
-simulation.track_object(mrp_feedback_fsw.get_message("Out_CommandTorqueMsg"))
-simulation.track_object(rw_motor_torque_fsw.get_message("Out_MotorTorqueArrayMsg"))
-simulation.track_object(rw_null_space_software.get_message("Out_MotorTorqueArrayMsg"))
-simulation.track_object(mtb_feedforward.get_message("Out_CommandTorqueMsg"))
 simulation.track_object(tam_encoder_fsw.get_message("Out_TAMBodyMsg"))
-simulation.track_object(attitude_tracking_error_fsw.get_message("Out_AttitudeErrorMsg"))
-simulation.track_object(spacecraft.get_message("Out_SpacecraftStateMsg"))
+simulation.track_object(mtb_array.get_message("Out_MTBArrayNetTorqueMsg"))
+simulation.track_object(torque_to_dipole_fsw.get_message("Out_CommandDipoleMsg"))
 
-simulation.tick_duration(time=10000, step=1)
-
-
-# plot the attitude error message to see if the heading estimation allows the ADCS to point at the sun
-df_att_error = simulation.query_dataframe(attitude_tracking_error_fsw.get_message("Out_AttitudeErrorMsg"))
-ax, fig = plt.subplots()
-plt.plot(
-    df_att_error.loc[:, "Time"],
-    df_att_error.loc[:, "Sigma_BR_0"],
-    label="X"
-)
-plt.plot(
-    df_att_error.loc[:, "Time"],
-    df_att_error.loc[:, "Sigma_BR_1"],
-    label="Y"
-)
-plt.plot(
-    df_att_error.loc[:, "Time"],
-    df_att_error.loc[:, "Sigma_BR_2"],
-    label="Z"
-)
-# add axis labels
-plt.xlabel("Time (s)")
-plt.ylabel("MRP Attitude Error")
-# add a title
-plt.title("Attitude Error")
-# add a legend
-plt.legend(['X', 'Y', 'Z'])
+# Execute the simulation and tick
+simulation.tick_duration(time=10000, step=1.0)
 
 
-# plot the reaction wheel speed
-df_rw_speed = simulation.query_dataframe(reaction_wheels.get_message("Out_RWArraySpeedMsg"))
-ax, fig = plt.subplots()
-plt.plot(
-    df_rw_speed.loc[:, "Time"],
-    df_rw_speed.loc[:, "WheelSpeeds_0"],
-    label="WheelSpeed 1"
-)
-plt.plot(
-    df_rw_speed.loc[:, "Time"],
-    df_rw_speed.loc[:, "WheelSpeeds_1"],
-    label="Wheel Speed 2"
-)
-plt.plot(
-    df_rw_speed.loc[:, "Time"],
-    df_rw_speed.loc[:, "WheelSpeeds_2"],
-    label="Wheel Speed 3"
-)
-plt.plot(
-    df_rw_speed.loc[:, "Time"],
-    df_rw_speed.loc[:, "WheelSpeeds_3"],
-    label="Wheel Speed 4"
-)
-# add axis labels
-plt.xlabel("Time (s)")
-plt.ylabel("Speed (RPM)")
-# add a title
-plt.title("Reaction Wheel Speed")
-# add a legend
-plt.legend()
 
+##############################
+# DATA ANALYSIS AND PLOTTING #
+##############################
+
+# Create a figure with four plots, 2x2 grd as ax1, ax2, ax3, ax4
+fig, axs = plt.subplots(2, 2, figsize=(12, 8))
+fig.suptitle("Momentum Management System - MTBs & RWs", fontsize=16)
+
+# Fetch the reaction wheel data and plot the wheel speeds for each of the four wheels
+data_rw = simulation.query_dataframe(reaction_wheels.get_message("Out_RWArraySpeedMsg"))
+axs[0, 0].plot(data_rw["Time"], data_rw["WheelSpeeds_0"], label="Wheel 1")
+axs[0, 0].plot(data_rw["Time"], data_rw["WheelSpeeds_1"], label="Wheel 2")
+axs[0, 0].plot(data_rw["Time"], data_rw["WheelSpeeds_2"], label="Wheel 3")
+axs[0, 0].plot(data_rw["Time"], data_rw["WheelSpeeds_3"], label="Wheel 4")
+axs[0, 0].set_title("Reaction Wheel Speeds")
+axs[0, 0].set_ylabel("Speed [rad/s]")
+axs[0, 0].legend()
+axs[0, 0].grid(True)
+
+# Plot the TAM body message from the encoder software
+data_tam = simulation.query_dataframe(tam_encoder_fsw.get_message("Out_TAMBodyMsg"))
+axs[0, 1].plot(data_tam["Time"], data_tam["Field_B_0"], label="X")
+axs[0, 1].plot(data_tam["Time"], data_tam["Field_B_1"], label="Y")
+axs[0, 1].plot(data_tam["Time"], data_tam["Field_B_2"], label="Z")
+axs[0, 1].set_title("TAM Magnetic Field")
+axs[0, 1].set_ylabel("Magnetic Field [T]")
+axs[0, 1].legend()
+axs[0, 1].grid(True)
+
+# Plot the MTB net torque message
+data_mtb = simulation.query_dataframe(mtb_array.get_message("Out_MTBArrayNetTorqueMsg"))
+axs[1, 0].plot(data_mtb["Time"], data_mtb["NetTorque_B_0"], label="X")
+axs[1, 0].plot(data_mtb["Time"], data_mtb["NetTorque_B_1"], label="Y")
+axs[1, 0].plot(data_mtb["Time"], data_mtb["NetTorque_B_2"], label="Z")
+axs[1, 0].set_title("MTB Net Torque")
+axs[1, 0].set_xlabel("Time [s]")
+axs[1, 0].set_ylabel("Torque [Nm]")
+axs[1, 0].legend()
+axs[1, 0].grid(True)
+
+# Plot the dipole command message
+data_dipole = simulation.query_dataframe(torque_to_dipole_fsw.get_message("Out_CommandDipoleMsg"))
+axs[1, 1].plot(data_dipole["Time"], data_dipole["DipoleRequest_B_0"], label="X")
+axs[1, 1].plot(data_dipole["Time"], data_dipole["DipoleRequest_B_1"], label="Y")
+axs[1, 1].plot(data_dipole["Time"], data_dipole["DipoleRequest_B_2"], label="Z")
+axs[1, 1].set_title("Dipole Command")
+axs[1, 1].set_xlabel("Time [s]")
+axs[1, 1].set_ylabel("Dipole [Am^2]")
+axs[1, 1].legend()
+axs[1, 1].grid(True)
+
+# Show the plots
+plt.tight_layout()
 plt.show()

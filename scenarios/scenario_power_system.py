@@ -34,11 +34,8 @@ printer.set_verbosity(printer.SUCCESS_VERBOSITY)
 # SIMULATION CONFIGURATION #
 ############################
 
-# Construct the credentials
-credentials = credential_helper.fetch_credentials()
-
-# Create a simulation handle
-simulation: Simulation = Simulation.get(credentials)
+# Create a simulation handle with the credentials
+simulation: Simulation = Simulation.get(credential_helper.fetch_credentials())
 
 # Configure the Universe with an epoch
 epoch = datetime(2022, 1, 1)
@@ -46,12 +43,11 @@ universe: System = simulation.get_system(
     types.SOLAR_SYSTEM,
     Epoch=epoch
 )
-# validate the epoch against the value that is set
 
 # Compute the orbit from the Keplerian elements to a state vector of (position, velocity)
 orbit: tuple = astro.classical_to_vector_elements(6671000, 
     inclination=35 * constants.D2R,
-    true_anomaly=16 * constants.D2R
+    true_anomaly=-15 * constants.D2R
 )
 
 # Adds the spacecraft
@@ -140,9 +136,8 @@ reaction_wheels.set(
     In_MotorTorqueArrayMsg=motor_torque_fsw.get_message("Out_MotorTorqueArrayMsg")
 )
 
-# set the interval at which data is sampled from the simulation
+# Register the objects to be tracked and set the interval in seconds
 simulation.set_tracking_interval(interval=10)
-# Register some messages to be stored in a database
 simulation.track_object(spacecraft.get_model("Universe.SolarModel").get_message("Out_EclipseMsg"))
 simulation.track_object(navigator.get_message("Out_NavigationAttitudeMsg"))
 simulation.track_object(sun_point_fsw.get_message("Out_AttitudeErrorMsg"))
@@ -150,9 +145,9 @@ simulation.track_object(solar_panel.get_message("Out_PowerSourceMsg"))
 simulation.track_object(battery.get_message("Out_BatteryMsg"))
 simulation.track_object(reaction_wheels.get_message("Out_RWArraySpeedMsg"))
 
-
 # Execute the simulation to be ticked
-simulation.tick_duration(step=0.1, time=500)
+simulation.tick_duration(step=0.1, time=1000)
+
 
 
 ##############################
@@ -161,37 +156,33 @@ simulation.tick_duration(step=0.1, time=500)
 
 # Set up the graphs for the data
 figure, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12, 6))
+figure.suptitle("Solar Panel Scenario")
 
 # Plot the first set of data
 data = simulation.query_dataframe(sun_point_fsw.get_message("Out_AttitudeErrorMsg"))
 ax1.plot(data.loc[:, "Time"].values, data.loc[:, ["Sigma_BR_0", "Sigma_BR_1", "Sigma_BR_2"]].values)
-
-# Configure the axis
 ax1.set_title("Sun Pointing Error")
-ax1.set_xlabel("Time [s]")
 ax1.set_ylabel("Sigma [MRP]")
 ax1.legend(['X', 'Y', 'Z'])
+ax1.grid(True)
 
 # Plot the second set of data of current attitude
 data = simulation.query_dataframe(battery.get_message("Out_BatteryMsg"))
 ax2.plot(data.loc[:, "Time"].values, data.loc[:, "ChargeFraction"].values * 100)
-
-# Configure the axis
 ax2.set_title("Battery Charge")
-ax2.set_xlabel("Time [s]")
 ax2.set_ylabel("Charge [%]")
+ax2.grid(True)
 
 # Plot the third set of data with power and visibility
 data = simulation.query_dataframe(solar_panel.get_message("Out_PowerSourceMsg"))
 ax3.plot(data.loc[:, "Time"].values, data.loc[:, "Power"].values, label="Power [W]", color="orange")
 data = simulation.query_dataframe(spacecraft.get_model("Universe.SolarModel").get_message("Out_EclipseMsg"))
 ax3.plot(data.loc[:, "Time"].values, data.loc[:, "Visibility"].values, label="Sun Visibility", color="pink")
-
-# Configure the axis
 ax3.set_title("Solar Panel Power")
 ax3.set_xlabel("Time [s]")
 ax3.set_ylabel("Incident Power [W]")
 ax3.legend()
+ax3.grid(True)
 
 # Plot the fourth set of data with reaction wheel speeds
 data = simulation.query_dataframe(reaction_wheels.get_message("Out_RWArraySpeedMsg"))
@@ -202,11 +193,11 @@ for i in range(3):
         label="RW %d Speed [r/s]" % (i + 1),
         color="cyan"
     )
-
-# Configure the axis
 ax4.set_title("Reaction Wheel Speeds")
 ax4.set_xlabel("Time [s]")
 ax4.set_ylabel("Speeds [r/s]")
+ax4.legend()
+ax4.grid(True)
 
 # Show the plots
 plt.tight_layout()

@@ -17,23 +17,27 @@ towards the nadir of the Earth.
 '''
 
 # Import the relevant helper scripts
-import numpy as np
+import os, numpy as np
 from datetime import datetime
 from matplotlib import pyplot as plt
 from nominalpy import printer, types, System, Object, Simulation, Message
 from nominalpy.maths import astro
 import credential_helper
 
+# Clear the terminal
+os.system('cls' if os.name == 'nt' else 'clear')
+
+# Set the verbosity
+printer.set_verbosity(printer.SUCCESS_VERBOSITY)
+
+
 
 ############################
 # SIMULATION CONFIGURATION #
 ############################
 
-# Construct the credentials
-credentials = credential_helper.fetch_credentials()
-
-# Create a simulation handle
-simulation: Simulation = Simulation.get(credentials)
+# Create a simulation handle with the credentials
+simulation: Simulation = Simulation.get(credential_helper.fetch_credentials())
 
 # Configure the Universe with an epoch
 universe: System = simulation.get_system(
@@ -184,6 +188,7 @@ df = simulation.query_dataframe(solar_panel.get_message("Out_PowerSourceMsg"))
 times: np.ndarray = df.loc[:, "Time"]
 power: np.ndarray = df.loc[:, "Power"]
 ax2.plot(times, power)
+ax2.grid(True)
 
 # Configure the axis
 ax2.set_title("Solar Panel Power")
@@ -196,6 +201,7 @@ times = df.loc[:, "Time"].values
 ax3.plot(times, df.loc[:, "WheelSpeeds_0"], label="RW 1 Speed [r/s]", color="cyan")
 ax3.plot(times, df.loc[:, "WheelSpeeds_1"], label="RW 2 Speed [r/s]", color="cyan")
 ax3.plot(times, df.loc[:, "WheelSpeeds_2"], label="RW 3 Speed [r/s]", color="cyan")
+ax3.grid(True)
 
 # Configure the axis
 ax3.set_title("Reaction Wheel Speeds")

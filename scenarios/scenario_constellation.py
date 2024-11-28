@@ -1,28 +1,45 @@
-# Advanced Constellation
+#!/usr/bin/env python3
+
+'''
+                    [ NOMINAL SYSTEMS ]
+This code is developed by Nominal Systems to aid with communication 
+to the public API. All code is under the the license provided along
+with the 'nominalpy' module. Copyright Nominal Systems, 2024.
+
+This example showcases how the constellation utility functions can be 
+leveraged to instantiate a constellation. In this example, a co-planar 
+constellation of five spacecraft is created. Each spacecraft is initialised 
+with a random pointing angle and then commanded to point consistently 
+according to their local Local-Vertical, Local-Horizontal frame.
+'''
+
+# Import the relevant helper scripts
 from datetime import datetime
-
-# Introduction
-# This example showcases how the constellation utility functions can be leveraged to instantiate a constellation.
-# In this example, a co-planar constellation of five spacecraft is created.
-# Each spacecraft is initialised with a random pointing angle and then commanded to point consistently according to their local Local-Vertical, Local-Horizontal frame.
-
-import numpy as np
-import pandas as pd
+import os, numpy as np, pandas as pd
 from matplotlib import pyplot as plt
-
-from nominalpy import types
+from nominalpy import types, printer
 from nominalpy.maths import astro, utils
 from nominalpy.maths.constants import RPM
-# from nominalpy.maths.utils import random_mrp
 from nominalpy.maths.constellations import CoplanarCircular
 from nominalpy import Simulation, Object
-
 import credential_helper
 
-# Scenario Configuration
-# The scenario is configured with the following parameters:
+# Clear the terminal
+os.system('cls' if os.name == 'nt' else 'clear')
 
-# define the configuration of the scenario
+# Set the verbosity
+printer.set_verbosity(printer.SUCCESS_VERBOSITY)
+
+
+
+############################
+# SIMULATION CONFIGURATION #
+############################
+
+# Create a simulation handle with the credentials
+simulation: Simulation = Simulation.get(credential_helper.fetch_credentials())
+
+# Define the configuration of the scenario
 num_spacecraft: int = 5
 sma0: float = 7000e3  # the initial semi-major axis of the spacecraft's orbit, meters
 inc0: float = np.radians(45)  # the initial inclination of the spacecraft's orbit, radians
@@ -41,19 +58,8 @@ mrp_feedback_fsws: list = []
 lvlh_fsws: list = []
 ephem_converter_fsws: list = []
 
-# Simulation Authentication
-# The simulation is authenticated using the credentials provided by Nominal Systems.
-# The api key associated with this simulation can be created/found by creating an account on Nominal Systems' website.
-
-# Construct the credentials
-credentials = credential_helper.fetch_credentials()
-
-# Create a simulation handle
-simulation: Simulation = Simulation.get(credentials)
-
 # Creating the Universe
 # Every simulation has a universe object. We can configure the universe to have a specific epoch.
-
 universe: Object = simulation.get_system(
     types.SOLAR_SYSTEM,
     Epoch=datetime(2021, 1, 15, hour=0, minute=28, second=30)
@@ -73,7 +79,6 @@ cons = CoplanarCircular(
     num_satellites=num_spacecraft,
     init_classical_elements=True,
 )
-
 
 # The initial state of each spacecraft in the orbit can be returned as orbital elements or state vectors.
 # They can also be calculated as osculating orbital values or the equivalent mean orbital elements/mean state vector.
@@ -106,9 +111,8 @@ def random_mrp():
     # return the random mrp
     return mrp
 
-
+# Create the spacecraft and initialise it with its orbit
 for _, vectors in cons.init_state_vectors_osculating(planet="earth").items():
-    # create the spacecraft and initialise it with its orbit
     sc = simulation.add_object(
         types.SPACECRAFT,
         TotalMass=4.0,  # kg
@@ -149,7 +153,7 @@ for i, sc in enumerate(spacecraft):
     ephem_converter_fsws.append(
         sc.add_behaviour(
             "PlanetEphemerisTranslationSoftware",
-            In_SpicePlanetStateMsg=simulation.get_planet("Earth").get_message("Out_SpicePlanetStateMsg"),
+            In_PlanetStateMsg=simulation.get_planet("Earth").get_message("Out_PlanetStateMsg"),
         )
     )
     # add the LVLH reference frame flight software
@@ -168,6 +172,7 @@ for i, sc in enumerate(spacecraft):
             In_AttitudeReferenceMsg=lvlh_fsws[i].get_message("Out_AttitudeReferenceMsg"),
         )
     )
+
     # add the MRP feedback software
     ki = -1.0
     decay_time = 10.0
@@ -184,6 +189,7 @@ for i, sc in enumerate(spacecraft):
             In_BodyMassMsg=sc.get_message("Out_BodyMassMsg").id,
         )
     )
+
     # connect the external force torque to the mrp feedback software
     # add the external force torque
     ext_torque.append(
@@ -198,7 +204,6 @@ for i, sc in enumerate(spacecraft):
 #   are recorded.
 # Please note, that the messages will update within the simulation according to the tick size, however, but will only
 #   be recorded and returned to users based at a frequency dictated by the subscribe step.
-
 subscribe_step = 5.0
 for k, sc in enumerate(spacecraft):
     simulation.set_tracking_interval(interval=subscribe_step)
@@ -215,6 +220,12 @@ for k, sc in enumerate(spacecraft):
 
 # run the scenario
 simulation.tick_duration(time=400, step=0.1)
+
+
+
+##############################
+# DATA ANALYSIS AND PLOTTING #
+##############################
 
 # Fetching and Analysing the Data
 # The data from the simulation can be fetched and analysed. The data can be fetched as a dataframe and then analysed

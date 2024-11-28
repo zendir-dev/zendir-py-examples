@@ -18,16 +18,20 @@ The scenario plots the attitude error over time to showcasing that the desired p
 axis of the spacecraft's orbit to show the orbit raising effect of the thruster.
 '''
 
-import numpy as np
+# Import the relevant helper scripts
+import os, numpy as np
 from matplotlib import pyplot as plt
 import credential_helper
-import os
 from datetime import datetime
-
-from nominalpy import types
-from nominalpy import System, Object, Simulation, printer
+from nominalpy import System, Object, Simulation, printer, types
 from nominalpy.maths import astro, utils
 from nominalpy.maths.constants import RPM
+
+# Clear the terminal
+os.system('cls' if os.name == 'nt' else 'clear')
+
+# Set the verbosity
+printer.set_verbosity(printer.SUCCESS_VERBOSITY)
 
 
 
@@ -35,11 +39,8 @@ from nominalpy.maths.constants import RPM
 # SIMULATION CONFIGURATION #
 ############################
 
-# Construct the credentials
-credentials = credential_helper.fetch_credentials()
-
-# Create a simulation handle
-simulation: Simulation = Simulation.get(credentials)
+# Create a simulation handle with the credentials
+simulation: Simulation = Simulation.get(credential_helper.fetch_credentials())
 
 # Configure the Solar System with an epoch
 epoch = datetime(2022, 1, 1)
@@ -178,7 +179,7 @@ navigator: Object = spacecraft.add_behaviour("SimpleNavigationSoftware")
 # Ephemeris conversion software
 ephem_converter_fsw = spacecraft.add_behaviour(
     "PlanetEphemerisTranslationSoftware",
-    In_SpicePlanetStateMsg=simulation.get_planet("Earth").get_message("Out_SpicePlanetStateMsg")
+    In_PlanetStateMsg=simulation.get_planet("Earth").get_message("Out_PlanetStateMsg")
 )
 
 # Velocity pointing software
@@ -186,7 +187,7 @@ vel_point_fsw = spacecraft.add_behaviour(
     "VelocityPointingSoftware",
     In_NavigationTranslationMsg=navigator.get_message("Out_NavigationTranslationMsg"),
     In_EphemerisMsg=ephem_converter_fsw.get_message("Out_EphemerisMsg"),
-    In_SpicePlanetStateMsg=simulation.get_planet("Earth").get_message("Out_SpicePlanetStateMsg")
+    In_PlanetStateMsg=simulation.get_planet("Earth").get_message("Out_PlanetStateMsg")
 )
 
 # Attitude tracking error software
@@ -266,6 +267,12 @@ while simulation.get_time() < 1200:
         )
         has_fired = True
 
+
+
+##############################
+# DATA ANALYSIS AND PLOTTING #
+##############################
+
 # Fetch the data for the simulation
 df_body_states = simulation.query_dataframe(spacecraft.get_message("Out_SpacecraftStateMsg"))
 df_body_mass = simulation.query_dataframe(spacecraft.get_message("Out_BodyMassMsg"))
@@ -333,6 +340,17 @@ ax3.plot(
 ax3.set_xlabel("Time [s]")
 ax3.set_ylabel("Propellant Mass [kg]")
 ax3.legend()
+
+# Plot the attitude of the spacecraft, using the 'Sigma_BN' from the spacecraft state message
+df_body_states.plot(
+    y=["Sigma_BN_0", "Sigma_BN_1", "Sigma_BN_2"],
+    color=["red", "green", "blue"],
+    xlabel="Time [s]",
+    ylabel="Sigma [MRP]",
+    legend=True,
+    title="Spacecraft Attitude",
+    ax=ax4
+)
 
 # Display the plots
 plt.tight_layout()
