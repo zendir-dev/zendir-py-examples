@@ -96,7 +96,7 @@ transmitter: Object = spacecraft.add_child(
 # Add power components to the spacecraft
 power_bus: Object = spacecraft.add_child("PowerBus")
 battery: Object = spacecraft.add_child(
-    "Battery", Capacity=1.0, NominalVoltage=12, ChargeFraction=0.1  # Ah  # V  # [0-1]
+    "Battery", NominalCapacity=1.0, NominalVoltage=12, ChargeFraction=0.1  # Ah  # V  # [0-1]
 )
 power_bus.invoke("Connect", battery, transmitter)
 power_model = transmitter.get_model("TransmitterPowerModel")
