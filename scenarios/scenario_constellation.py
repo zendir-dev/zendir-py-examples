@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 
-'''
+"""
                     [ NOMINAL SYSTEMS ]
-This code is developed by Nominal Systems to aid with communication 
+This code is developed by Nominal Systems to aid with communication
 to the public API. All code is under the the license provided along
 with the 'nominalpy' module. Copyright Nominal Systems, 2024.
 
-This example showcases how the constellation utility functions can be 
-leveraged to instantiate a constellation. In this example, a co-planar 
-constellation of five spacecraft is created. Each spacecraft is initialised 
-with a random pointing angle and then commanded to point consistently 
+This example showcases how the constellation utility functions can be
+leveraged to instantiate a constellation. In this example, a co-planar
+constellation of five spacecraft is created. Each spacecraft is initialised
+with a random pointing angle and then commanded to point consistently
 according to their local Local-Vertical, Local-Horizontal frame.
-'''
+"""
 
 # Import the relevant helper scripts
 from datetime import datetime
@@ -25,11 +25,10 @@ from nominalpy import Simulation, Object
 import credential_helper
 
 # Clear the terminal
-os.system('cls' if os.name == 'nt' else 'clear')
+os.system("cls" if os.name == "nt" else "clear")
 
 # Set the verbosity
 printer.set_verbosity(printer.SUCCESS_VERBOSITY)
-
 
 
 ############################
@@ -42,8 +41,12 @@ simulation: Simulation = Simulation.get(credential_helper.fetch_credentials())
 # Define the configuration of the scenario
 num_spacecraft: int = 5
 sma0: float = 7000e3  # the initial semi-major axis of the spacecraft's orbit, meters
-inc0: float = np.radians(45)  # the initial inclination of the spacecraft's orbit, radians
-raan0: float = np.radians(35)  # the initial right ascenscion of the ascending node of the spacecraft's orbit, radians
+inc0: float = np.radians(
+    45
+)  # the initial inclination of the spacecraft's orbit, radians
+raan0: float = np.radians(
+    35
+)  # the initial right ascenscion of the ascending node of the spacecraft's orbit, radians
 
 # Creating the Data Containers
 # The components for each spacecraft can be stored in their own separate containers.
@@ -61,8 +64,7 @@ ephem_converter_fsws: list = []
 # Creating the Universe
 # Every simulation has a universe object. We can configure the universe to have a specific epoch.
 universe: Object = simulation.get_system(
-    types.SOLAR_SYSTEM,
-    Epoch=datetime(2021, 1, 15, hour=0, minute=28, second=30)
+    types.SOLAR_SYSTEM, Epoch=datetime(2021, 1, 15, hour=0, minute=28, second=30)
 )
 
 # The co-planar constellation utility class allows the user to calculate the initial state of the spacecraft equispaced about a single plane.
@@ -85,6 +87,7 @@ cons = CoplanarCircular(
 # In this case we calculate the state vector directly in its osculating state.
 
 # define a function to generate a random MRP vector for the initial attitude of the spacecraft
+
 
 def random_mrp():
     """
@@ -111,19 +114,22 @@ def random_mrp():
     # return the random mrp
     return mrp
 
+
 # Create the spacecraft and initialise it with its orbit
 for _, vectors in cons.init_state_vectors_osculating(planet="earth").items():
     sc = simulation.add_object(
         types.SPACECRAFT,
         TotalMass=4.0,  # kg
         TotalCenterOfMassB_B=np.array((0, 0, 0)),
-        TotalMomentOfInertiaB_B=np.diag([0.02 / 3.0, 0.1256 / 3.0, 0.1256 / 3.0]),  # kg m^2
+        TotalMomentOfInertiaB_B=np.diag(
+            [0.02 / 3.0, 0.1256 / 3.0, 0.1256 / 3.0]
+        ),  # kg m^2
         OverrideMass=True,  # When True, this forces a hard code of the total mass, com, and moi of the spacecraft
         Position=vectors["r_bn_n"],
         Velocity=vectors["v_bn_n"],
         # set default values, these will have to be updated for every test case
         Attitude=random_mrp(),
-        AttitudeRate=np.array((0.0, 0.0, 0.0))
+        AttitudeRate=np.array((0.0, 0.0, 0.0)),
     )
     spacecraft.append(sc)
 
@@ -153,14 +159,18 @@ for i, sc in enumerate(spacecraft):
     ephem_converter_fsws.append(
         sc.add_behaviour(
             "PlanetEphemerisTranslationSoftware",
-            In_PlanetStateMsg=simulation.get_planet("Earth").get_message("Out_PlanetStateMsg"),
+            In_PlanetStateMsg=simulation.get_planet("Earth").get_message(
+                "Out_PlanetStateMsg"
+            ),
         )
     )
     # add the LVLH reference frame flight software
     lvlh_fsws.append(
         sc.add_behaviour(
             "NadirPointingSoftware",
-            In_NavigationTranslationMsg=navigators[i].get_message("Out_NavigationTranslationMsg"),
+            In_NavigationTranslationMsg=navigators[i].get_message(
+                "Out_NavigationTranslationMsg"
+            ),
             In_EphemerisMsg=ephem_converter_fsws[i].get_message("Out_EphemerisMsg"),
         )
     )
@@ -168,8 +178,12 @@ for i, sc in enumerate(spacecraft):
     attitude_tracking_error_fsws.append(
         sc.add_behaviour(
             "AttitudeReferenceErrorSoftware",
-            In_NavigationAttitudeMsg=navigators[i].get_message("Out_NavigationAttitudeMsg"),
-            In_AttitudeReferenceMsg=lvlh_fsws[i].get_message("Out_AttitudeReferenceMsg"),
+            In_NavigationAttitudeMsg=navigators[i].get_message(
+                "Out_NavigationAttitudeMsg"
+            ),
+            In_AttitudeReferenceMsg=lvlh_fsws[i].get_message(
+                "Out_AttitudeReferenceMsg"
+            ),
         )
     )
 
@@ -185,8 +199,10 @@ for i, sc in enumerate(spacecraft):
             P=P,
             Ki=ki,
             IntegralLimit=2.0 / ki * 0.1,
-            In_AttitudeErrorMsg=attitude_tracking_error_fsws[i].get_message("Out_AttitudeErrorMsg").id,
-            In_BodyMassMsg=sc.get_message("Out_BodyMassMsg").id,
+            In_AttitudeErrorMsg=attitude_tracking_error_fsws[i].get_message(
+                "Out_AttitudeErrorMsg"
+            ),
+            In_BodyMassMsg=sc.get_message("Out_BodyMassMsg"),
         )
     )
 
@@ -195,7 +211,9 @@ for i, sc in enumerate(spacecraft):
     ext_torque.append(
         sc.add_child(
             "ExternalForceTorque",
-            In_CommandTorqueMsg=mrp_feedback_fsws[i].get_message("Out_CommandTorqueMsg").id,
+            In_CommandTorqueMsg=mrp_feedback_fsws[i].get_message(
+                "Out_CommandTorqueMsg"
+            ),
         )
     )
 
@@ -209,7 +227,9 @@ for k, sc in enumerate(spacecraft):
     simulation.set_tracking_interval(interval=subscribe_step)
     simulation.track_object(sc.get_message("Out_BodyMassMsg"))
     simulation.track_object(sc.get_message("Out_SpacecraftStateMsg"))
-    simulation.track_object(attitude_tracking_error_fsws[k].get_message("Out_AttitudeErrorMsg"))
+    simulation.track_object(
+        attitude_tracking_error_fsws[k].get_message("Out_AttitudeErrorMsg")
+    )
     simulation.track_object(mrp_feedback_fsws[k].get_message("Out_CommandTorqueMsg"))
     simulation.track_object(navigators[k].get_message("Out_NavigationAttitudeMsg"))
 
@@ -222,7 +242,6 @@ for k, sc in enumerate(spacecraft):
 simulation.tick_duration(time=400, step=0.1)
 
 
-
 ##############################
 # DATA ANALYSIS AND PLOTTING #
 ##############################
@@ -233,16 +252,29 @@ simulation.tick_duration(time=400, step=0.1)
 # The data can be plotted to visualise the behaviour of the spacecraft.
 
 # fetch the data as a dataframe and concatenate the frames into a single frame for each spacecraft
-dfs_att = [simulation.query_dataframe(at.get_message("Out_AttitudeErrorMsg")) for at in attitude_tracking_error_fsws]
+dfs_att = [
+    simulation.query_dataframe(at.get_message("Out_AttitudeErrorMsg"))
+    for at in attitude_tracking_error_fsws
+]
 df_att0 = dfs_att[0]
-df_body_state = pd.concat([simulation.query_dataframe(sc.get_message("Out_SpacecraftStateMsg")) for sc in spacecraft])
+df_body_state = pd.concat(
+    [
+        simulation.query_dataframe(sc.get_message("Out_SpacecraftStateMsg"))
+        for sc in spacecraft
+    ]
+)
 df_att = pd.concat(
-    [simulation.query_dataframe(at.get_message("Out_AttitudeErrorMsg")) for at in attitude_tracking_error_fsws],
-    keys=[i for i in range(len(attitude_tracking_error_fsws))]
+    [
+        simulation.query_dataframe(at.get_message("Out_AttitudeErrorMsg"))
+        for at in attitude_tracking_error_fsws
+    ],
+    keys=[i for i in range(len(attitude_tracking_error_fsws))],
 )
 # set the names of the indices
 df_att.index = df_att.index.set_names(["sc_num", "index"])
-df_att = df_att.reset_index(drop=False).set_index(["sc_num", "Time"]).drop(columns=["index"])
+df_att = (
+    df_att.reset_index(drop=False).set_index(["sc_num", "Time"]).drop(columns=["index"])
+)
 
 # If we plot the magnitude of the attitude tracking error for all spacecraft on one plot,
 # we can see that the attitude of the spacecraft converges onto the target attitude for all spacecraft irrespective of
@@ -252,12 +284,17 @@ df_att = df_att.reset_index(drop=False).set_index(["sc_num", "Time"]).drop(colum
 fig, ax = plt.subplots()
 for j, sc in enumerate(spacecraft):
     ax.plot(
-        df_att.loc[df_att.index.get_level_values("sc_num") == j].index.get_level_values("Time").values,
+        df_att.loc[df_att.index.get_level_values("sc_num") == j]
+        .index.get_level_values("Time")
+        .values,
         np.linalg.norm(
-            df_att.loc[df_att.index.get_level_values("sc_num") == j, ["Sigma_BR_0", "Sigma_BR_1", "Sigma_BR_2"]],
-            axis=1
+            df_att.loc[
+                df_att.index.get_level_values("sc_num") == j,
+                ["Sigma_BR_0", "Sigma_BR_1", "Sigma_BR_2"],
+            ],
+            axis=1,
         ),
-        label=f"Spacecraft {j + 1}"
+        label=f"Spacecraft {j + 1}",
     )
 ax.set_title("Attitude Tracking Error")
 ax.set_xlabel("Time [s]")

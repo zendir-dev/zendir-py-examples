@@ -84,7 +84,7 @@ async def main():
     bus = await spacecraft.add_behaviour(
         "PowerBus",
     )
-    await bus.invoke("Connect", solar_panel.id, battery.id)
+    await bus.invoke("Connect", solar_panel, battery)
 
     # Adds in Sun Safe Pointing
     sun_point_fsw = await spacecraft.add_behaviour(

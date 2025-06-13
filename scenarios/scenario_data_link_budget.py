@@ -84,9 +84,15 @@ async def main():
 
     # Add reaction wheels to the spacecraft
     reaction_wheels: Object = await spacecraft.add_child("ReactionWheelArray")
-    await reaction_wheels.add_child("ReactionWheel", WheelSpinAxis_B=np.array([1, 0, 0]))
-    await reaction_wheels.add_child("ReactionWheel", WheelSpinAxis_B=np.array([0, 1, 0]))
-    await reaction_wheels.add_child("ReactionWheel", WheelSpinAxis_B=np.array([0, 0, 1]))
+    await reaction_wheels.add_child(
+        "ReactionWheel", WheelSpinAxis_B=np.array([1, 0, 0])
+    )
+    await reaction_wheels.add_child(
+        "ReactionWheel", WheelSpinAxis_B=np.array([0, 1, 0])
+    )
+    await reaction_wheels.add_child(
+        "ReactionWheel", WheelSpinAxis_B=np.array([0, 0, 1])
+    )
 
     # Add data components to the spacecraft
     transmitter: Object = await spacecraft.add_child(
@@ -100,7 +106,10 @@ async def main():
     # Add power components to the spacecraft
     power_bus: Behaviour = await spacecraft.add_behaviour("PowerBus")
     battery: Object = await spacecraft.add_child(
-        "Battery", Capacity=1.0, NominalVoltage=12, ChargeFraction=0.1  # Ah  # V  # [0-1]
+        "Battery",
+        Capacity=1.0,
+        NominalVoltage=12,
+        ChargeFraction=0.1,  # Ah  # V  # [0-1]
     )
     await power_bus.invoke("Connect", battery, transmitter)
     power_model = await transmitter.get_model("TransmitterPowerModel")
@@ -115,8 +124,8 @@ async def main():
     navigator = await spacecraft.add_behaviour("SimpleNavigationSoftware")
 
     # Track the spacecraft
-    access_msg =simulation.add_message_by_id(
-        id=await ground_station.invoke("TrackObject", spacecraft.id)
+    access_msg = await simulation.find_message_with_id(
+        id=await ground_station.invoke("TrackObject", spacecraft)
     )
 
     # Fetch the link message from the data subsystem
@@ -125,12 +134,13 @@ async def main():
 
     # Subscribe to the data
     await simulation.track_object(access_msg)
-    await simulation.track_object(await reaction_wheels.get_message("Out_RWArraySpeedMsg"))
+    await simulation.track_object(
+        await reaction_wheels.get_message("Out_RWArraySpeedMsg")
+    )
     await simulation.track_object(link_msg)
 
     # Run the simulation
     await simulation.tick_duration(step=0.1, time=1250)
-
 
     ##############################
     # DATA ANALYSIS AND PLOTTING #
@@ -155,12 +165,19 @@ async def main():
     axs[0, 1].set_ylabel("Angle [deg]")
     axs[0, 1].legend(loc="upper right")
     axs[0, 1].fill_between(
-        df_access["Time"], 0, 90, where=df_access["IsAccessible"], color="green", alpha=0.3
+        df_access["Time"],
+        0,
+        90,
+        where=df_access["IsAccessible"],
+        color="green",
+        alpha=0.3,
     )
     axs[0, 1].text(40, 80, "Accessible", color="green")
 
     # Plot the reaction wheel speeds for each wheel
-    df_rw = await simulation.query_dataframe(await reaction_wheels.get_message("Out_RWArraySpeedMsg"))
+    df_rw = await simulation.query_dataframe(
+        await reaction_wheels.get_message("Out_RWArraySpeedMsg")
+    )
     for i in range(3):
         axs[1, 0].plot(df_rw["Time"], df_rw[f"WheelSpeeds_{i}"], label=f"Wheel {i}")
     axs[1, 0].set_title("Reaction Wheel Speeds")
@@ -169,7 +186,9 @@ async def main():
     axs[1, 0].legend()
 
     # Plot the delta-velocity from the link
-    axs[1, 1].plot(df_link["Time"], df_link["DeltaVelocity"], label="Delta Velocity [m/s]")
+    axs[1, 1].plot(
+        df_link["Time"], df_link["DeltaVelocity"], label="Delta Velocity [m/s]"
+    )
     axs[1, 1].set_title("Delta Velocity")
     axs[1, 1].set_xlabel("Time [s]")
     axs[1, 1].set_ylabel("Velocity [m/s]")
