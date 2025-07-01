@@ -2,7 +2,7 @@
 
 """
                     [ NOMINAL SYSTEMS ]
-This code is developed by Nominal Systems to aid with communication 
+This code is developed by Nominal Systems to aid with communication
 to the public API. All code is under the the license provided along
 with the 'nominalpy' module. Copyright Nominal Systems, 2024.
 
@@ -16,38 +16,33 @@ is used to point the spacecraft towards the sun.
 """
 
 # Import the relevant helper scripts
-import os, numpy as np
+import numpy as np
 from datetime import datetime
 from matplotlib import pyplot as plt
 from matplotlib.gridspec import GridSpec
 from nominalpy.maths import astro
-from nominalpy import types, Object, System, Simulation, Client, printer
+from nominalpy import runner, Object, Simulation, Client, printer
 from nominalpy.maths.constants import RPM
 from nominalpy.maths.kinematics import up_axis_to_dcm
 import credential_helper
-import asyncio
 
-# Clear the terminal
-os.system("cls" if os.name == "nt" else "clear")
 
-# Set the verbosity
+# Prepare the print settings
+printer.clear()
 printer.set_verbosity(printer.SUCCESS_VERBOSITY)
 
 
-############################
-# SIMULATION CONFIGURATION #
-############################
+# This method is the main function that is executed by the runner,
+# asynchronously. The 'simulation' parameter is the simulation handle
+# that is used to interact with the simulation.
+async def main(simulation: Simulation) -> None:
 
-
-async def main():
-    # Create a simulation handle with the credentials
-    client: Client = Client.create_local()
-    simulation: Simulation = await Simulation.create(client)
+    ############################
+    # SIMULATION CONFIGURATION #
+    ############################
 
     # Set the epoch of the solar system
-    solar_system: System = await simulation.get_system(
-        types.SOLAR_SYSTEM, Epoch=datetime(2024, 1, 1, 0)
-    )
+    await simulation.get_system("SolarSystem", Epoch=datetime(2024, 1, 1, 0))
 
     # Define the classical orbital elements, using an SSO orbit
     orbit: tuple = astro.classical_to_vector_elements_deg(
@@ -61,7 +56,7 @@ async def main():
 
     # Define the spacecraft properties
     spacecraft: Object = await simulation.add_object(
-        types.SPACECRAFT,
+        "Spacecraft",
         TotalMass=10.0,  # kg
         TotalMomentOfInertiaB_B=np.diag([900.0, 800.0, 600.0]),  # kg m^2
         Position=orbit[0],
@@ -113,7 +108,9 @@ async def main():
     navigator_fsw = await spacecraft.add_behaviour(
         "SimpleNavigationSoftware",
         In_SpacecraftStateMsg=await spacecraft.get_message("Out_SpacecraftStateMsg"),
-        In_SunPlanetStateMsg=await (await simulation.get_planet("sun")).get_message("Out_PlanetStateMsg"),
+        In_SunPlanetStateMsg=await (await simulation.get_planet("sun")).get_message(
+            "Out_PlanetStateMsg"
+        ),
     )
 
     # Create the sunline EKF navigation software
@@ -127,7 +124,9 @@ async def main():
         SensorThreshold=np.sqrt(0.017 * 0.017) * 5,
         EKFSwitch=5,
         In_CSSArrayDataMsg=await css_constellation.get_message("Out_CSSArrayDataMsg"),
-        In_CSSArrayConfigMsg=await css_constellation.get_message("Out_CSSArrayConfigMsg"),
+        In_CSSArrayConfigMsg=await css_constellation.get_message(
+            "Out_CSSArrayConfigMsg"
+        ),
     )
 
     # Add the sun pointing software
@@ -139,7 +138,9 @@ async def main():
         Omega_RN_B=np.zeros(3),
         SunAxisSpinRate=0.0,
         In_SunDirectionMsg=await css_ekf_fsw.get_message("Out_NavigationAttitudeMsg"),
-        In_NavigationAttitudeMsg=await navigator_fsw.get_message("Out_NavigationAttitudeMsg"),
+        In_NavigationAttitudeMsg=await navigator_fsw.get_message(
+            "Out_NavigationAttitudeMsg"
+        ),
     )
 
     # Add the MRP feedback software
@@ -169,8 +170,12 @@ async def main():
 
     # Track all the relevant messages from the simulation
     await simulation.set_tracking_interval(interval=10)
-    await simulation.track_object(await sun_pointing_fsw.get_message("Out_AttitudeErrorMsg"))
-    await simulation.track_object(await css_constellation.get_message("Out_CSSArrayDataMsg"))
+    await simulation.track_object(
+        await sun_pointing_fsw.get_message("Out_AttitudeErrorMsg")
+    )
+    await simulation.track_object(
+        await css_constellation.get_message("Out_CSSArrayDataMsg")
+    )
     await simulation.track_object(await solar_panel.get_message("Out_PowerMsg"))
 
     # Execute the simulation for some time
@@ -187,7 +192,6 @@ async def main():
 
     # Execute the simulation for some time
     await simulation.tick_duration(step=0.1, time=300)
-
 
     ##############################
     # DATA ANALYSIS AND PLOTTING #
@@ -206,7 +210,9 @@ async def main():
         await css_constellation.get_message("Out_CSSArrayDataMsg")
     )
     for i in range(8):
-        ax_left.plot(data_css["Time"], data_css[f"SensedValues_{i}"], label=f"CSS {i + 1}")
+        ax_left.plot(
+            data_css["Time"], data_css[f"SensedValues_{i}"], label=f"CSS {i + 1}"
+        )
     ax_left.set_title("Coarse Sun Sensor Signals")
     ax_left.set_xlabel("Time [s]")
     ax_left.set_ylabel("Signal [V]")
@@ -242,5 +248,7 @@ async def main():
     plt.tight_layout()
     plt.show()
 
-# Run the asynchronous main function
-asyncio.run(main())
+
+# Create a client with the valid credentials and run the simulation function
+client: Client = credential_helper.fetch_client()
+runner.run_simulation(client, main, dispose=True)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-'''
+"""
                     [ NOMINAL SYSTEMS ]
 This code is developed by Nominal Systems to aid with communication
 to the public API. All code is under the the license provided along
@@ -11,77 +11,71 @@ is used to control the spacecraft's attitude. The spacecraft has a set
 of reaction wheels and magnetic torque bars that are used to control
 the spacecraft's attitude. The spacecraft is then controlled to point
 at the sun.
-'''
+"""
 
 # Import the relevant helper scripts
-import os, numpy as np
+import numpy as np
 from datetime import datetime
 from matplotlib import pyplot as plt
 from nominalpy.maths import astro
-from nominalpy import types, Object, Simulation, Client, printer, System
+from nominalpy import Object, Simulation, Client, printer, System, runner
 from nominalpy.maths.constants import RPM
 import credential_helper
-import asyncio
 
-# Clear the terminal
-os.system('cls' if os.name == 'nt' else 'clear')
 
-# Set the verbosity
+# Prepare the print settings
+printer.clear()
 printer.set_verbosity(printer.SUCCESS_VERBOSITY)
 
 
-############################
-# SIMULATION CONFIGURATION #
-############################
+# This method is the main function that is executed by the runner,
+# asynchronously. The 'simulation' parameter is the simulation handle
+# that is used to interact with the simulation.
+async def main(simulation: Simulation) -> None:
 
-
-async def main():
-    # Create a simulation handle with the credentials
-    client: Client = Client.create_local()
-    simulation: Simulation = await Simulation.create(client)
+    ############################
+    # SIMULATION CONFIGURATION #
+    ############################
 
     # Configure the Universe with an epoch
     solar_system: System = await simulation.get_system(
-        types.SOLAR_SYSTEM,
-        Epoch=datetime(2022, 1, 1)
+        "SolarSystem", Epoch=datetime(2022, 1, 1)
     )
 
     # Add the Earth's magnetic field
     await solar_system.invoke(
         "CreateMagneticFieldCenteredDipole",
         "earth",
-        -15463,     # G10
-        -1159,      # G11
-        2908.5,     # H11
-        -1,         # MinReach (not used)
-        -1          # MaxReach (not used)
+        -15463,  # G10
+        -1159,  # G11
+        2908.5,  # H11
+        -1,  # MinReach (not used)
+        -1,  # MaxReach (not used)
     )
 
     # Define the orbital elements
     orbit: tuple = astro.classical_to_vector_elements_deg(
-        semi_major_axis=6778.14 * 1000,     # meters
+        semi_major_axis=6778.14 * 1000,  # meters
         eccentricity=0.0,
-        inclination=45.0,                   # degrees
-        right_ascension=60.0,               # degrees
-        argument_of_periapsis=0.0,          # degrees
-        true_anomaly=0.0                    # degrees
+        inclination=45.0,  # degrees
+        right_ascension=60.0,  # degrees
+        argument_of_periapsis=0.0,  # degrees
+        true_anomaly=0.0,  # degrees
     )
 
     # Define the spacecraft with the current orbit
     spacecraft: Object = await simulation.add_object(
-        types.SPACECRAFT,
+        "Spacecraft",
         TotalMass=10.0,  # kg
         TotalCenterOfMassB_B=np.array([0, 0, 0]),
-        TotalMomentOfInertiaB_B=np.array([
-            [0.02 / 3.0, 0, 0],
-            [0, 0.1256 / 3.0, 0],
-            [0, 0, 0.1256 / 3.0]
-        ]),
+        TotalMomentOfInertiaB_B=np.array(
+            [[0.02 / 3.0, 0, 0], [0, 0.1256 / 3.0, 0], [0, 0, 0.1256 / 3.0]]
+        ),
         Position=orbit[0],
         Velocity=orbit[1],
         Attitude=np.array([0.1, 0.2, -0.3]),
         AttitudeRate=np.array([0.001, -0.01, 0.03]),
-        OverrideMass=True
+        OverrideMass=True,
     )
 
     # Add the magnetic torque bar array and reaction wheels, with four bars
@@ -90,13 +84,11 @@ async def main():
         np.array([1, 0, 0]),
         np.array([0, 1, 0]),
         np.array([0, 0, 1]),
-        np.array([0.70710678, 0.70710678, 0.0])
+        np.array([0.70710678, 0.70710678, 0.0]),
     ]
     for axis in mtb_axes:
         await mtb_array.add_child(
-            "MagneticTorqueBar",
-            MaxDipoles=0.1,     # Am^2
-            BarAxis_B=axis
+            "MagneticTorqueBar", MaxDipoles=0.1, BarAxis_B=axis  # Am^2
         )
 
     # Add the reaction wheels, with four wheels
@@ -106,7 +98,7 @@ async def main():
         np.array([0, np.cos(RW_BETA), np.sin(RW_BETA)]),
         np.array([0, np.sin(RW_BETA), -np.cos(RW_BETA)]),
         np.array([np.cos(RW_BETA), -np.sin(RW_BETA), 0]),
-        np.array([-np.cos(RW_BETA), -np.sin(RW_BETA), 0])
+        np.array([-np.cos(RW_BETA), -np.sin(RW_BETA), 0]),
     ]
     for axis in rw_axes:
         await reaction_wheels.add_child(
@@ -124,8 +116,8 @@ async def main():
             FrictionStatic=0.0,
             BetaStatic=-1.0,
             FrictionViscous=0.0,
-            StaticImbalance=1.0E-7,
-            DynamicImbalance=1.0E-8
+            StaticImbalance=1.0e-7,
+            DynamicImbalance=1.0e-8,
         )
 
     # Add the spacecraft's navigation software
@@ -133,21 +125,23 @@ async def main():
 
     # Add the spacecraft's magnetometer
     tam: Object = await spacecraft.add_child(
-        "Magnetometer",
-        NoiseStd=np.array([0.0, 0.0, 0.0])
+        "Magnetometer", NoiseStd=np.array([0.0, 0.0, 0.0])
     )
 
     # Add the inertial pointing software
     inertial_hold_fsw: Object = await spacecraft.add_behaviour(
-        "InertialPointingSoftware",
-        Sigma_RN=np.array([0.0, 0.0, 0.0])
+        "InertialPointingSoftware", Sigma_RN=np.array([0.0, 0.0, 0.0])
     )
 
     # Add the attitude tracking error software
     attitude_tracking_error_fsw: Object = await spacecraft.add_behaviour(
         "AttitudeReferenceErrorSoftware",
-        In_NavigationAttitudeMsg=await navigator_fsw.get_message("Out_NavigationAttitudeMsg"),
-        In_AttitudeReferenceMsg=await inertial_hold_fsw.get_message("Out_AttitudeReferenceMsg")
+        In_NavigationAttitudeMsg=await navigator_fsw.get_message(
+            "Out_NavigationAttitudeMsg"
+        ),
+        In_AttitudeReferenceMsg=await inertial_hold_fsw.get_message(
+            "Out_AttitudeReferenceMsg"
+        ),
     )
 
     # Add the MRP feedback control software
@@ -157,9 +151,11 @@ async def main():
         P=0.002,
         Ki=-1.0,
         IntegralLimit=2.0 / -1.0 * 0.1,
-        In_AttitudeErrorMsg=await attitude_tracking_error_fsw.get_message("Out_AttitudeErrorMsg"),
+        In_AttitudeErrorMsg=await attitude_tracking_error_fsw.get_message(
+            "Out_AttitudeErrorMsg"
+        ),
         In_RWArraySpeedMsg=await reaction_wheels.get_message("Out_RWArraySpeedMsg"),
-        In_RWArrayConfigMsg=await reaction_wheels.get_message("Out_RWArrayConfigMsg")
+        In_RWArrayConfigMsg=await reaction_wheels.get_message("Out_RWArrayConfigMsg"),
     )
 
     # Add the momentum management software
@@ -167,18 +163,20 @@ async def main():
         "RWMomentumControlSoftware",
         Kp=0.003,
         In_RWArrayConfigMsg=await reaction_wheels.get_message("Out_RWArrayConfigMsg"),
-        In_RWArraySpeedMsg=await reaction_wheels.get_message("Out_RWArraySpeedMsg")
+        In_RWArraySpeedMsg=await reaction_wheels.get_message("Out_RWArraySpeedMsg"),
     )
 
     # Add the dipole mapping software
     dipole_mapping_fsw: Object = await spacecraft.add_behaviour(
         "MTBDipoleMappingSoftware",
-        DipoleMapping=np.array([
-            [0.75, -0.25, 0.0],
-            [-0.25, 0.75, 0.0],
-            [0.0, 0.0, 1.0],
-            [0.35355339, 0.35355339, 0.0]
-        ]),
+        DipoleMapping=np.array(
+            [
+                [0.75, -0.25, 0.0],
+                [-0.25, 0.75, 0.0],
+                [0.0, 0.0, 1.0],
+                [0.35355339, 0.35355339, 0.0],
+            ]
+        ),
     )
 
     # Add the feedforward mapping software
@@ -186,7 +184,7 @@ async def main():
         "MTBFeedforwardMappingSoftware",
         In_DipoleArrayMsg=await dipole_mapping_fsw.get_message("Out_DipoleArrayMsg"),
         In_CommandTorqueMsg=await mrp_feedback_fsw.get_message("Out_CommandTorqueMsg"),
-        In_MTBArrayConfigMsg=await mtb_array.get_message("Out_MTBArrayConfigMsg")
+        In_MTBArrayConfigMsg=await mtb_array.get_message("Out_MTBArrayConfigMsg"),
     )
 
     # Add the reaction wheel torque mapping software
@@ -194,7 +192,9 @@ async def main():
         "RWTorqueMappingSoftware",
         ControlAxes_B=np.eye(3),
         In_RWArrayConfigMsg=await reaction_wheels.get_message("Out_RWArrayConfigMsg"),
-        In_CommandTorqueMsg=await mtb_feedforward_fsw.get_message("Out_CommandTorqueMsg")
+        In_CommandTorqueMsg=await mtb_feedforward_fsw.get_message(
+            "Out_CommandTorqueMsg"
+        ),
     )
 
     # Add the reaction wheel null space software
@@ -203,26 +203,29 @@ async def main():
         OmegaGain=0.000003,
         In_RWArrayConfigMsg=await reaction_wheels.get_message("Out_RWArrayConfigMsg"),
         In_RWArraySpeedMsg=await reaction_wheels.get_message("Out_RWArraySpeedMsg"),
-        In_MotorTorqueArrayMsg=await rw_motor_torque_fsw.get_message("Out_MotorTorqueArrayMsg")
+        In_MotorTorqueArrayMsg=await rw_motor_torque_fsw.get_message(
+            "Out_MotorTorqueArrayMsg"
+        ),
     )
 
     # Add the TAM encoder software
     tam_encoder_fsw: Object = await spacecraft.add_behaviour(
-        "TAMEncoderSoftware",
-        In_TAMDataMsg=await tam.get_message("Out_TAMDataMsg")
+        "TAMEncoderSoftware", In_TAMDataMsg=await tam.get_message("Out_TAMDataMsg")
     )
 
     # Add the torque to dipole conversion software
     torque_to_dipole_fsw: Object = await spacecraft.add_behaviour(
         "TorqueDipoleConversionSoftware",
         In_TAMBodyMsg=await tam_encoder_fsw.get_message("Out_TAMBodyMsg"),
-        In_CommandTorqueMsg=await momentum_fsw.get_message("Out_CommandTorqueMsg")
+        In_CommandTorqueMsg=await momentum_fsw.get_message("Out_CommandTorqueMsg"),
     )
 
     # Reconnect the messages for the other software
     await dipole_mapping_fsw.set(
-        In_CommandDipoleMsg=await torque_to_dipole_fsw.get_message("Out_CommandDipoleMsg"),
-        In_MTBArrayConfigMsg=await mtb_array.get_message("Out_MTBArrayConfigMsg")
+        In_CommandDipoleMsg=await torque_to_dipole_fsw.get_message(
+            "Out_CommandDipoleMsg"
+        ),
+        In_MTBArrayConfigMsg=await mtb_array.get_message("Out_MTBArrayConfigMsg"),
     )
     await mtb_feedforward_fsw.set(
         In_TAMBodyMsg=await tam_encoder_fsw.get_message("Out_TAMBodyMsg")
@@ -233,21 +236,28 @@ async def main():
         In_DipoleArrayMsg=await dipole_mapping_fsw.get_message("Out_DipoleArrayMsg")
     )
     await reaction_wheels.set(
-        In_MotorTorqueArrayMsg=await rw_nullspace_fsw.get_message("Out_MotorTorqueArrayMsg")
+        In_MotorTorqueArrayMsg=await rw_nullspace_fsw.get_message(
+            "Out_MotorTorqueArrayMsg"
+        )
     )
 
     # Set the data tracking interval for the simulation
     await simulation.set_tracking_interval(interval=60)
 
     # Register data tracking for various messages from spacecraft components
-    await simulation.track_object(await reaction_wheels.get_message("Out_RWArraySpeedMsg"))
+    await simulation.track_object(
+        await reaction_wheels.get_message("Out_RWArraySpeedMsg")
+    )
     await simulation.track_object(await tam_encoder_fsw.get_message("Out_TAMBodyMsg"))
-    await simulation.track_object(await mtb_array.get_message("Out_MTBArrayNetTorqueMsg"))
-    await simulation.track_object(await torque_to_dipole_fsw.get_message("Out_CommandDipoleMsg"))
+    await simulation.track_object(
+        await mtb_array.get_message("Out_MTBArrayNetTorqueMsg")
+    )
+    await simulation.track_object(
+        await torque_to_dipole_fsw.get_message("Out_CommandDipoleMsg")
+    )
 
     # Execute the simulation and tick
     await simulation.tick_duration(time=10000, step=1.0)
-
 
     ##############################
     # DATA ANALYSIS AND PLOTTING #
@@ -313,5 +323,6 @@ async def main():
     plt.show()
 
 
-# Run the asynchronous main function
-asyncio.run(main())
+# Create a client with the valid credentials and run the simulation function
+client: Client = credential_helper.fetch_client()
+runner.run_simulation(client, main, dispose=True)

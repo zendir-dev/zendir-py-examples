@@ -15,35 +15,31 @@ calculate the signal-to-noise ratio (SNR) and the bit error rate (BER).
 
 # Import the relevant helper scripts
 import matplotlib.pyplot as plt
-import os, numpy as np
+import numpy as np
 from datetime import datetime
-from nominalpy import printer, Behaviour
+from nominalpy import printer, Behaviour, runner
 from nominalpy.maths import astro
 from nominalpy.maths.data import kilobytes_to_bits
-from nominalpy import types, Object, Simulation, System, Client, printer
+from nominalpy import Object, Simulation, Client, printer
 import credential_helper
-import asyncio
 
-# Clear the terminal
-os.system("cls" if os.name == "nt" else "clear")
-
-# Set the verbosity
+# Prepare the print settings
+printer.clear()
 printer.set_verbosity(printer.SUCCESS_VERBOSITY)
 
 
-############################
-# SIMULATION CONFIGURATION #
-############################
+# This method is the main function that is executed by the runner,
+# asynchronously. The 'simulation' parameter is the simulation handle
+# that is used to interact with the simulation.
+async def main(simulation: Simulation) -> None:
 
-
-async def main():
-    # Create a simulation handle with the credentials
-    client: Client = Client.create_local()
-    simulation: Simulation = await Simulation.create(client)
+    ############################
+    # SIMULATION CONFIGURATION #
+    ############################
 
     # Configure the solar system with an epoch
     epoch = datetime(2022, 1, 1)
-    solar_system: System = await simulation.get_system(types.SOLAR_SYSTEM, Epoch=epoch)
+    await simulation.get_system("SolarSystem", Epoch=epoch)
 
     # Define the classical orbital elements
     orbit: tuple = astro.classical_to_vector_elements_deg(
@@ -57,7 +53,7 @@ async def main():
 
     # Define the spacecraft properties
     spacecraft: Object = await simulation.add_object(
-        types.SPACECRAFT,
+        "Spacecraft",
         TotalMass=750.0,  # kg
         TotalCenterOfMassB_B=np.array([0, 0, 0]),  # m
         TotalMomentOfInertiaB_B=np.diag([900.0, 800.0, 600.0]),  # kg m^2
@@ -69,7 +65,7 @@ async def main():
 
     # Add the ground station to the simulation
     ground_station: Object = await simulation.add_object(
-        types.GROUND_STATION,
+        "GroundStation",
         Latitude=-10.0,  # deg
         Longitude=170.0,  # deg
         Altitude=0.0,  # m
@@ -129,7 +125,7 @@ async def main():
     )
 
     # Fetch the link message from the data subsystem
-    data_system = await simulation.get_system(types.TELEMETRY_SYSTEM)
+    data_system = await simulation.get_system("TelemetrySystem")
     link_msg = await data_system.invoke("GetLinkMessage", receiver, transmitter)
 
     # Subscribe to the data
@@ -198,5 +194,6 @@ async def main():
     plt.show()
 
 
-# Run the asynchronous main function
-asyncio.run(main())
+# Create a client with the valid credentials and run the simulation function
+client: Client = credential_helper.fetch_client()
+runner.run_simulation(client, main, dispose=True)

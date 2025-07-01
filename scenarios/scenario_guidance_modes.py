@@ -17,33 +17,30 @@ towards the nadir of the Earth.
 """
 
 # Import the relevant helper scripts
-import os, numpy as np
+import numpy as np
 from datetime import datetime
 from matplotlib import pyplot as plt
-from nominalpy import printer, types, System, Object, Simulation, Client
+from nominalpy import printer, runner, Object, Simulation, Client
 from nominalpy.maths import astro
 import credential_helper
-import asyncio
 
-# Clear the terminal
-os.system("cls" if os.name == "nt" else "clear")
 
-# Set the verbosity
+# Prepare the print settings
+printer.clear()
 printer.set_verbosity(printer.SUCCESS_VERBOSITY)
 
 
-############################
-# SIMULATION CONFIGURATION #
-############################
+# This method is the main function that is executed by the runner,
+# asynchronously. The 'simulation' parameter is the simulation handle
+# that is used to interact with the simulation.
+async def main(simulation: Simulation) -> None:
 
-
-async def main():
-    # Create a simulation handle with the credentials
-    client: Client = Client.create_local()
-    simulation: Simulation = await Simulation.create(client)
+    ############################
+    # SIMULATION CONFIGURATION #
+    ############################
 
     # Configure the Universe with an epoch
-    universe: System = await simulation.get_system(types.SOLAR_SYSTEM, Epoch=datetime(2024, 1, 1))
+    await simulation.get_system("SolarSystem", Epoch=datetime(2024, 1, 1))
 
     # Compute the orbit from the Keplerian elements to a state vector of (position, velocity)
     orbit: tuple = astro.classical_to_vector_elements(
@@ -57,7 +54,7 @@ async def main():
 
     # Adds the spacecraft
     spacecraft: Object = await simulation.add_object(
-        types.SPACECRAFT,
+        "Spacecraft",
         TotalMass=750.0,
         TotalCenterOfMassB_B=np.array([0, 0, 0]),
         TotalMomentOfInertiaB_B=np.array([[900, 0, 0], [0, 800, 0], [0, 0, 600]]),
@@ -79,7 +76,9 @@ async def main():
     )
 
     # Adds in a solar panel for SUN-pointing
-    solar_panel: Object = await spacecraft.add_child("SolarPanel", Efficiency=0.2, Area=0.06)
+    solar_panel: Object = await spacecraft.add_child(
+        "SolarPanel", Efficiency=0.2, Area=0.06
+    )
     await solar_panel.invoke("RollDegrees", 90.0)
 
     # Add in a thruster for VELOCITY-pointing
@@ -103,9 +102,13 @@ async def main():
     # Set the tracking interval for polling data during the simulation
     await simulation.set_tracking_interval(interval=5.0)
     # Register some messages to be stored in a database
-    await simulation.track_object(await spacecraft.get_message("Out_SpacecraftStateMsg"))
+    await simulation.track_object(
+        await spacecraft.get_message("Out_SpacecraftStateMsg")
+    )
     await simulation.track_object(await solar_panel.get_message("Out_PowerMsg"))
-    await simulation.track_object(await reaction_wheels.get_message("Out_RWArraySpeedMsg"))
+    await simulation.track_object(
+        await reaction_wheels.get_message("Out_RWArraySpeedMsg")
+    )
 
     # Execute the simulation for some time
     await simulation.tick_duration(time=100, step=0.1)
@@ -128,7 +131,6 @@ async def main():
     # Execute the simulation for some time
     await simulation.tick_duration(time=300, step=0.1)
 
-
     ##############################
     # DATA ANALYSIS AND PLOTTING #
     ##############################
@@ -144,7 +146,9 @@ async def main():
     figure.set_size_inches(12, 6)
 
     # Plot the first set of data, which shows the sigma state and the commands
-    df = await simulation.query_dataframe(await spacecraft.get_message("Out_SpacecraftStateMsg"))
+    df = await simulation.query_dataframe(
+        await spacecraft.get_message("Out_SpacecraftStateMsg")
+    )
     times: np.ndarray = df.loc[:, "Time"].values
     sigma_0: np.ndarray = df.loc[:, "Sigma_BN_0"].values
     sigma_1: np.ndarray = df.loc[:, "Sigma_BN_1"].values
@@ -188,7 +192,9 @@ async def main():
     ax2.set_ylabel("Power [W]")
 
     # Plot the fourth set of data with reaction wheel speeds
-    df = await simulation.query_dataframe(await reaction_wheels.get_message("Out_RWArraySpeedMsg"))
+    df = await simulation.query_dataframe(
+        await reaction_wheels.get_message("Out_RWArraySpeedMsg")
+    )
     times = df.loc[:, "Time"].values
     ax3.plot(times, df.loc[:, "WheelSpeeds_0"], label="RW 1 Speed [r/s]", color="cyan")
     ax3.plot(times, df.loc[:, "WheelSpeeds_1"], label="RW 2 Speed [r/s]", color="cyan")
@@ -205,5 +211,6 @@ async def main():
     plt.show()
 
 
-# Run the asynchronous main function
-asyncio.run(main())
+# Create a client with the valid credentials and run the simulation function
+client: Client = credential_helper.fetch_client()
+runner.run_simulation(client, main, dispose=True)

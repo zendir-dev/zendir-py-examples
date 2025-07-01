@@ -15,34 +15,31 @@ sun and preventing the solar panel from producing power.
 """
 
 # Import the relevant helper scripts
-import os, numpy as np
+import numpy as np
 from datetime import datetime
 from matplotlib import pyplot as plt
-from nominalpy import printer, types, System, Object, Simulation, Client
+from nominalpy import printer, runner, Object, Simulation, Client
 from nominalpy.maths import astro, constants
 import credential_helper
 
-# Clear the terminal
-os.system("cls" if os.name == "nt" else "clear")
 
-# Set the verbosity
+# Prepare the print settings
+printer.clear()
 printer.set_verbosity(printer.SUCCESS_VERBOSITY)
 
 
-############################
-# SIMULATION CONFIGURATION #
-############################
+# This method is the main function that is executed by the runner,
+# asynchronously. The 'simulation' parameter is the simulation handle
+# that is used to interact with the simulation.
+async def main(simulation: Simulation) -> None:
 
-
-async def main():
-
-    # Create a simulation handle with the credentials
-    client: Client = Client.create_local()
-    simulation: Simulation = await Simulation.create(client)
+    ############################
+    # SIMULATION CONFIGURATION #
+    ############################
 
     # Configure the Universe with an epoch
     epoch = datetime(2022, 1, 1)
-    universe: System = await simulation.get_system(types.SOLAR_SYSTEM, Epoch=epoch)
+    await simulation.get_system("SolarSystem", Epoch=epoch)
 
     # Compute the orbit from the Keplerian elements to a state vector of (position, velocity)
     orbit: tuple = astro.classical_to_vector_elements(
@@ -51,7 +48,7 @@ async def main():
 
     # Adds the spacecraft
     spacecraft: Object = await simulation.add_object(
-        types.SPACECRAFT,
+        "Spacecraft",
         TotalMass=750.0,
         TotalCenterOfMassB_B=np.array([0, 0, 0]),
         TotalMomentOfInertiaB_B=np.array([[900, 0, 0], [0, 800, 0], [0, 0, 600]]),
@@ -130,9 +127,7 @@ async def main():
     # Register the objects to be tracked and set the interval in seconds
     await simulation.set_tracking_interval(interval=10)
     await simulation.track_object(
-        await (await spacecraft.get_model("Universe.SolarModel")).get_message(
-            "Out_EclipseMsg"
-        )
+        await (await spacecraft.get_model("SolarModel")).get_message("Out_EclipseMsg")
     )
     await simulation.track_object(
         await navigator.get_message("Out_NavigationAttitudeMsg")
@@ -188,9 +183,7 @@ async def main():
         color="orange",
     )
     data = await simulation.query_dataframe(
-        await (await spacecraft.get_model("Universe.SolarModel")).get_message(
-            "Out_EclipseMsg"
-        )
+        await (await spacecraft.get_model("SolarModel")).get_message("Out_EclipseMsg")
     )
     ax3.plot(
         data.loc[:, "Time"].values,
@@ -226,7 +219,6 @@ async def main():
     plt.show()
 
 
-# Import asyncio to run the main function
-import asyncio
-
-asyncio.run(main())
+# Create a client with the valid credentials and run the simulation function
+client: Client = credential_helper.fetch_client()
+runner.run_simulation(client, main, dispose=True)
