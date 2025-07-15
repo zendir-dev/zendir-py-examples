@@ -88,7 +88,6 @@ async def main(simulation: Simulation) -> None:
         Velocity=orbit[1],
         Attitude=np.array([0.1, 0.2, -0.3]),  # MRP
         AttitudeRate=np.array([0.0, 0.0, 0.0]),  # rad/s
-        OverrideMass=True,
     )
 
     # Create the reaction wheels, using the spacecraft object

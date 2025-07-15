@@ -63,7 +63,6 @@ async def main(simulation: Simulation) -> None:
         "Spacecraft",
         Attitude=np.array([0.1, 0.2, -0.3], dtype=np.float64),
         AttitudeRate=np.array([0.001, -0.01, 0.03], dtype=np.float64),
-        OverrideMass=False,
     )
 
     # define the desired initial orbital elements
@@ -124,10 +123,10 @@ async def main(simulation: Simulation) -> None:
 
     # Add the thruster
     exit_area = 0.00113411495
-    thruster_main = await spacecraft.add_child("Thruster")
+    thruster_main = await spacecraft.add_child("ColdGasThruster")
 
     # Get the fuel node associated with the thruster
-    fuel_node_main: Model = await thruster_main.get_model("ThrusterFuelModel")
+    fuel_node_main: Model = await thruster_main.get_model("ColdGasThrusterFuelModel")
     await fuel_node_main.set(
         SpecificHeatRatio=specific_heat_ratio,
         TotalTemperature=total_temperature,

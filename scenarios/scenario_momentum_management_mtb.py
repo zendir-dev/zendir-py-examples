@@ -75,7 +75,6 @@ async def main(simulation: Simulation) -> None:
         Velocity=orbit[1],
         Attitude=np.array([0.1, 0.2, -0.3]),
         AttitudeRate=np.array([0.001, -0.01, 0.03]),
-        OverrideMass=True,
     )
 
     # Add the magnetic torque bar array and reaction wheels, with four bars

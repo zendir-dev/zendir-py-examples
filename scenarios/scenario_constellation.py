@@ -124,7 +124,6 @@ async def main(simulation: Simulation) -> None:
             TotalMomentOfInertiaB_B=np.diag(
                 [0.02 / 3.0, 0.1256 / 3.0, 0.1256 / 3.0]
             ),  # kg m^2
-            OverrideMass=True,  # When True, this forces a hard code of the total mass, com, and moi of the spacecraft
             Position=vectors["r_bn_n"],
             Velocity=vectors["v_bn_n"],
             # set default values, these will have to be updated for every test case

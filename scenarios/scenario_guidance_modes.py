@@ -82,7 +82,7 @@ async def main(simulation: Simulation) -> None:
     await solar_panel.invoke("RollDegrees", 90.0)
 
     # Add in a thruster for VELOCITY-pointing
-    thruster: Object = await spacecraft.add_child("Thruster")
+    thruster: Object = await spacecraft.add_child("ColdGasThruster")
     await thruster.invoke("PitchDegrees", 180.0)
 
     # Add in a camera for NADIR-pointing

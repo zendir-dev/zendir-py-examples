@@ -103,7 +103,7 @@ async def main(simulation: Simulation) -> None:
     power_bus: Behaviour = await spacecraft.add_behaviour("PowerBus")
     battery: Object = await spacecraft.add_child(
         "Battery",
-        Capacity=1.0,
+        NominalCapacity=1.0,
         NominalVoltage=12,
         ChargeFraction=0.1,  # Ah  # V  # [0-1]
     )
