@@ -1,8 +1,8 @@
 """
-                    [ NOMINAL SYSTEMS ]
-This code is developed by Nominal Systems to aid with communication
+                    [ ZENDIR ]
+This code is developed by Zendir to aid with communication
 to the public API. All code is under the the license provided along
-with the 'nominalpy' module. Copyright Nominal Systems, 2024.
+with the 'zendir' module. Copyright Zendir, 2025.
 
 This method allows for easy exporting of custom-defined credentials,
 specified within the parameters below. Importing this method into
@@ -11,7 +11,7 @@ the system. When using the public API, make sure to enter your access
 key to the GLOBAL_KEY parameter.
 """
 
-from nominalpy import Client
+from zendir import Client
 
 # Defines the credentials for a Local API connection
 LOCAL_PORT: int = 25565
