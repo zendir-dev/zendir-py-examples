@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 """
-                    [ NOMINAL SYSTEMS ]
-This code is developed by Nominal Systems to aid with communication
-to the public API. All code is under the the license provided along
-with the 'zendir' module. Copyright Nominal Systems, 2024.
+                    [ ZENDIR ]
+This code is developed by Zendir to aid with communication
+to the public API. All code is under the the license provided
+with the 'zendir' module. Copyright Zendir, 2025.
 
 This example uses a RADAR and Electromagnetic sensor to track a target
 spacecraft in orbit. The RADAR sensor is mounted on the spacecraft and
