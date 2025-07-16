@@ -4,7 +4,7 @@
                     [ NOMINAL SYSTEMS ]
 This code is developed by Nominal Systems to aid with communication
 to the public API. All code is under the the license provided along
-with the 'nominalpy' module. Copyright Nominal Systems, 2024.
+with the 'zendir' module. Copyright Nominal Systems, 2024.
 
 This example shows a spacecraft with a data link budget that is used
 to communicate with a ground station. The spacecraft has a transmitter
@@ -17,10 +17,10 @@ calculate the signal-to-noise ratio (SNR) and the bit error rate (BER).
 import matplotlib.pyplot as plt
 import numpy as np
 from datetime import datetime
-from nominalpy import printer, Behaviour, runner
-from nominalpy.maths import astro
-from nominalpy.maths.data import kilobytes_to_bits
-from nominalpy import Object, Simulation, Client, printer
+from zendir import printer, Behaviour, runner
+from zendir.maths import astro
+from zendir.maths.data import kilobytes_to_bits
+from zendir import Object, Simulation, Client, printer
 import credential_helper
 
 # Prepare the print settings

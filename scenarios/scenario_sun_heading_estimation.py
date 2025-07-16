@@ -4,7 +4,7 @@
                     [ NOMINAL SYSTEMS ]
 This code is developed by Nominal Systems to aid with communication
 to the public API. All code is under the the license provided along
-with the 'nominalpy' module. Copyright Nominal Systems, 2024.
+with the 'zendir' module. Copyright Nominal Systems, 2024.
 
 This example shows a spacecraft with a sun heading estimation that is
 used to point the spacecraft towards the sun. The spacecraft has a
@@ -20,10 +20,10 @@ import numpy as np
 from datetime import datetime
 from matplotlib import pyplot as plt
 from matplotlib.gridspec import GridSpec
-from nominalpy.maths import astro
-from nominalpy import runner, Object, Simulation, Client, printer
-from nominalpy.maths.constants import RPM
-from nominalpy.maths.kinematics import up_axis_to_dcm
+from zendir.maths import astro
+from zendir import runner, Object, Simulation, Client, printer
+from zendir.maths.constants import RPM
+from zendir.maths.kinematics import up_axis_to_dcm
 import credential_helper
 
 

@@ -2,7 +2,7 @@
                     [ NOMINAL SYSTEMS ]
 This code is developed by Nominal Systems to aid with communication
 to the public API. All code is under the the license provided along
-with the 'nominalpy' module. Copyright Nominal Systems, 2024.
+with the 'zendir' module. Copyright Nominal Systems, 2024.
 
 This script instantiates a spacecraft in low Earth orbit possessing a propulsion system composed of:
 - A thruster with a thrust vector aligned with the vehicle centre of mass
@@ -22,9 +22,9 @@ axis of the spacecraft's orbit to show the orbit raising effect of the thruster.
 import numpy as np
 from matplotlib import pyplot as plt
 from datetime import datetime
-from nominalpy import Object, Model, Simulation, printer, runner, Client
-from nominalpy.maths import astro, utils
-from nominalpy.maths.constants import RPM
+from zendir import Object, Model, Simulation, printer, runner, Client
+from zendir.maths import astro, utils
+from zendir.maths.constants import RPM
 import credential_helper
 
 

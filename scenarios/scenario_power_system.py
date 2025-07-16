@@ -4,7 +4,7 @@
                     [ NOMINAL SYSTEMS ]
 This code is developed by Nominal Systems to aid with communication
 to the public API. All code is under the the license provided along
-with the 'nominalpy' module. Copyright Nominal Systems, 2024.
+with the 'zendir' module. Copyright Nominal Systems, 2024.
 
 This example shows a spacecraft with a sun pointing ADCS system that
 will orient the spacecraft to face its solar panel towards the sun,
@@ -18,8 +18,8 @@ sun and preventing the solar panel from producing power.
 import numpy as np
 from datetime import datetime
 from matplotlib import pyplot as plt
-from nominalpy import printer, runner, Object, Simulation, Client
-from nominalpy.maths import astro, constants
+from zendir import printer, runner, Object, Simulation, Client
+from zendir.maths import astro, constants
 import credential_helper
 
 

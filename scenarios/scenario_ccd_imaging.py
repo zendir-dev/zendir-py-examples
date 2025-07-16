@@ -4,7 +4,7 @@
                     [ NOMINAL SYSTEMS ]
 This code is developed by Nominal Systems to aid with communication
 to the public API. All code is under the the license provided along
-with the 'nominalpy' module. Copyright Nominal Systems, 2024.
+with the 'zendir' module. Copyright Nominal Systems, 2024.
 
 This example uses a Charge Coupled Device (CCD) sensor to image a
 spacecraft in orbit. The CCD sensor is mounted on a tracking mount
@@ -15,7 +15,7 @@ message. The data is then plotted and can be shown using matplotlib.
 
 # Import the relevant helper scripts
 import numpy as np, datetime as dt
-from nominalpy import printer, Object, Simulation, Client, Instance, runner
+from zendir import printer, Object, Simulation, Client, Instance, runner
 import credential_helper
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec

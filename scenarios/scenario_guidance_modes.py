@@ -4,7 +4,7 @@
                     [ NOMINAL SYSTEMS ]
 This code is developed by Nominal Systems to aid with communication
 to the public API. All code is under the the license provided along
-with the 'nominalpy' module. Copyright Nominal Systems, 2024.
+with the 'zendir' module. Copyright Nominal Systems, 2024.
 
 This example shows how to use the guidance computer to switch between
 different pointing modes, pointing at different locations. This can
@@ -20,8 +20,8 @@ towards the nadir of the Earth.
 import numpy as np
 from datetime import datetime
 from matplotlib import pyplot as plt
-from nominalpy import printer, runner, Object, Simulation, Client
-from nominalpy.maths import astro
+from zendir import printer, runner, Object, Simulation, Client
+from zendir.maths import astro
 import credential_helper
 
 

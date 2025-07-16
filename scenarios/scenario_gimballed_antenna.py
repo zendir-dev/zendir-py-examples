@@ -4,7 +4,7 @@
                     [ NOMINAL SYSTEMS ]
 This code is developed by Nominal Systems to aid with communication
 to the public API. All code is under the the license provided along
-with the 'nominalpy' module. Copyright Nominal Systems, 2024.
+with the 'zendir' module. Copyright Nominal Systems, 2024.
 
 This example shows a spacecraft with a gimballed antenna that is used
 to communicate with a ground station. The spacecraft has a transmitter
@@ -17,9 +17,9 @@ antenna towards the ground station.
 import numpy as np
 from datetime import datetime
 from matplotlib import pyplot as plt
-from nominalpy.maths import astro
-from nominalpy import Client, runner, Simulation, Message
-from nominalpy.utils import printer
+from zendir.maths import astro
+from zendir import Client, runner, Simulation, Message
+from zendir.utils import printer
 import credential_helper
 
 

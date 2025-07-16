@@ -4,7 +4,7 @@
                     [ NOMINAL SYSTEMS ]
 This code is developed by Nominal Systems to aid with communication
 to the public API. All code is under the the license provided along
-with the 'nominalpy' module. Copyright Nominal Systems, 2024.
+with the 'zendir' module. Copyright Nominal Systems, 2024.
 
 This example shows a spacecraft with a momentum management system that
 is used to control the spacecraft's attitude. The spacecraft has a set
@@ -17,9 +17,9 @@ at the sun.
 import numpy as np
 from datetime import datetime
 from matplotlib import pyplot as plt
-from nominalpy.maths import astro
-from nominalpy import Object, Simulation, Client, printer, System, runner
-from nominalpy.maths.constants import RPM
+from zendir.maths import astro
+from zendir import Object, Simulation, Client, printer, System, runner
+from zendir.maths.constants import RPM
 import credential_helper
 
 

@@ -4,7 +4,7 @@
                     [ NOMINAL SYSTEMS ]
 This code is developed by Nominal Systems to aid with communication
 to the public API. All code is under the the license provided along
-with the 'nominalpy' module. Copyright Nominal Systems, 2024.
+with the 'zendir' module. Copyright Nominal Systems, 2024.
 
 This example shows a spacecraft with a data storage network that is
 used to store data from a ground station. The spacecraft has a receiver
@@ -16,10 +16,10 @@ the receiver, which is then stored in the spacecraft's data storage.
 import numpy as np, pytz
 import matplotlib.pyplot as plt
 from datetime import datetime
-from nominalpy.maths import astro
-from nominalpy import runner, System, Simulation, Client, printer
-from nominalpy.maths.constants import RPM
-from nominalpy.maths.data import (
+from zendir.maths import astro
+from zendir import runner, System, Simulation, Client, printer
+from zendir.maths.constants import RPM
+from zendir.maths.data import (
     kilobytes_to_bits,
     megabytes_to_bytes,
     kilobytes_to_bytes,

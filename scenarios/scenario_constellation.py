@@ -4,7 +4,7 @@
                     [ NOMINAL SYSTEMS ]
 This code is developed by Nominal Systems to aid with communication
 to the public API. All code is under the the license provided along
-with the 'nominalpy' module. Copyright Nominal Systems, 2024.
+with the 'zendir' module. Copyright Nominal Systems, 2024.
 
 This example showcases how the constellation utility functions can be
 leveraged to instantiate a constellation. In this example, a co-planar
@@ -17,10 +17,10 @@ according to their local Local-Vertical, Local-Horizontal frame.
 from datetime import datetime
 import numpy as np, pandas as pd
 from matplotlib import pyplot as plt
-from nominalpy import runner, printer, Client
-from nominalpy.maths.constants import RPM
-from nominalpy.maths.constellations import CoplanarCircular
-from nominalpy import Simulation, Object, Behaviour
+from zendir import runner, printer, Client
+from zendir.maths.constants import RPM
+from zendir.maths.constellations import CoplanarCircular
+from zendir import Simulation, Object, Behaviour
 import credential_helper
 
 
@@ -73,7 +73,7 @@ async def main(simulation: Simulation) -> None:
     # The size and orientation of the orbital plane is defined by its semi-major axis, inclination, and right-ascension of the ascending node.
     # Other orbital elements can further define the nature of the orbits and orbital plane, however are not included in this example.
 
-    # define a coplanar constellation of spacecraft using the utility function provided in nominalpy
+    # define a coplanar constellation of spacecraft using the utility function provided in zendir
     cons = CoplanarCircular(
         semi_major_axis=sma0,
         inclination=inc0,

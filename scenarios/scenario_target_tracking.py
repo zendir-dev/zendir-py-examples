@@ -4,7 +4,7 @@
                     [ NOMINAL SYSTEMS ]
 This code is developed by Nominal Systems to aid with communication
 to the public API. All code is under the the license provided along
-with the 'nominalpy' module. Copyright Nominal Systems, 2024.
+with the 'zendir' module. Copyright Nominal Systems, 2024.
 
 This example uses a RADAR and Electromagnetic sensor to track a target
 spacecraft in orbit. The RADAR sensor is mounted on the spacecraft and
@@ -15,7 +15,7 @@ and can be shown using matplotlib.
 
 # Import the relevant helper scripts
 import numpy as np, datetime as dt
-from nominalpy import (
+from zendir import (
     printer,
     runner,
     Object,
