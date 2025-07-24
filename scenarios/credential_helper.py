@@ -17,7 +17,7 @@ from zendir import Client
 LOCAL_PORT: int = 25565
 
 # Defines the credentials for a Public API connection
-GLOBAL_URL: str = "https://api.zendir.io"
+GLOBAL_URL: str = "https://api.zendir.io/v2.0"
 API_TOKEN: str = ""  # This is where the access key for the API should be added
 
 # The flag that sets whether to use the public API or the local one.
