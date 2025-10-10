@@ -126,8 +126,7 @@ async def main(simulation: Simulation) -> None:
     thruster_main = await spacecraft.add_child("ColdGasThruster")
 
     # Get the fuel node associated with the thruster
-    fuel_node_main: Model = await thruster_main.get_model("ColdGasThrusterFuelModel")
-    await fuel_node_main.set(
+    await thruster_main.set(
         SpecificHeatRatio=specific_heat_ratio,
         TotalTemperature=total_temperature,
         TotalPressure=total_pressure,
@@ -143,14 +142,14 @@ async def main(simulation: Simulation) -> None:
         TankLength=tank_length,
         TankRadius=tank_radius,
         Capacity=fuel_amount_start + 10.0,  # kg
-        MaximumFlowRate=max_flow_rate,
+        MaximumOutgoingFlowRate=max_flow_rate,
         Amount=fuel_amount_start,
         DryMass=dry_mass,
     )
     # Adjust orientation of the fuel source
     await fuel_source_main.invoke("PitchDegrees", 90.0)
     # add the fuel node to the fuel source
-    await fuel_node_main.invoke("Attach", fuel_source_main)
+    await thruster_main.invoke("ConnectFuelSource", fuel_source_main)
 
     # Set the thruster properties
     max_thrust = 220.0
