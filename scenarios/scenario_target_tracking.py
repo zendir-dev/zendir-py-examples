@@ -182,7 +182,6 @@ async def main(simulation: Simulation) -> None:
     await simulation.track_object(
         await em_sensor.get_message("Out_ElectromagneticDataMsg")
     )
-
     # Tick the simulation over 10 minutes
     await simulation.tick_duration(step=1.0, time=1200)
 

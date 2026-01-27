@@ -207,7 +207,7 @@ async def main(simulation: Simulation) -> None:
     data_transmitter = await simulation.query_dataframe(transmitter)
     axs[0, 1].plot(
         data_transmitter["Time"],
-        data_transmitter["BytesTransmitted"],
+        data_transmitter["TransmittedData"],
         label="Data Transmitted",
     )
     axs[0, 1].set_title("Bytes Transmitted")

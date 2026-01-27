@@ -63,7 +63,6 @@ async def main(simulation: Simulation) -> None:
         "Transmitter",
         Frequency=100 * 1e6,  # Hz
         Power=1,  # W
-        Bandwidth=1e4,  # Hz
         BitRate=1e9,  # bps
         AntennaGain=98,  # dB
     )
@@ -143,10 +142,9 @@ async def main(simulation: Simulation) -> None:
     receiver = await gimbal.add_child(
         "Receiver",
         Frequency=100 * 1e6,  # Hz
-        Power=1e-3,  # W
         AntennaGain=10,  # dB
         Bandwidth=1e3,  # Hz
-        ThresholdSignalToNoise=20,  # dB
+        Sensitivity=20,  # dB
     )
 
     # Rotate the receiver to point away from the ground station initially
@@ -156,8 +154,7 @@ async def main(simulation: Simulation) -> None:
     await receiver.invoke("ConfigureEMLookupTable", "RFPattern.csv")
 
     # Fetch the link message from the data subsystem
-    data_system = await simulation.get_system("TelemetrySystem")
-    link_msg = await data_system.invoke("GetLinkMessage", receiver, transmitter)
+    link_msg = await receiver.invoke("GetAntennaLink", transmitter)
 
     # Subscribes to the messages of interest
     await simulation.set_tracking_interval(interval=5)
@@ -223,7 +220,7 @@ async def main(simulation: Simulation) -> None:
     axs[1, 0].grid(True)
 
     # Plot the receiver signal-to-noise ratio over time
-    axs[1, 1].plot(data_link["Time"], data_link["SignalToNoise"])
+    axs[1, 1].plot(data_link["Time"], data_link["EffectiveSignalToNoise"])
     axs[1, 1].set_title("Signal-to-Noise Ratio")
     axs[1, 1].set_xlabel("Time [s]")
     axs[1, 1].set_ylabel("SNR [dB]")
