@@ -125,8 +125,7 @@ async def main(simulation: Simulation) -> None:
     )
 
     # Fetch the link message from the data subsystem
-    data_system = await simulation.get_system("TelemetrySystem")
-    link_msg = await data_system.invoke("GetLinkMessage", receiver, transmitter)
+    link_msg = await receiver.invoke("GetAntennaLink", transmitter)
 
     # Subscribe to the data
     await simulation.track_object(access_msg)
@@ -150,7 +149,7 @@ async def main(simulation: Simulation) -> None:
 
     # Plot the signal-to-noise ratio (SNR)
     df_link = await simulation.query_dataframe(link_msg)
-    axs[0, 0].plot(df_link["Time"], df_link["SignalToNoise"], label="SNR")
+    axs[0, 0].plot(df_link["Time"], df_link["EffectiveSignalToNoise"], label="SNR")
     axs[0, 0].set_title("Signal-to-Noise Ratio (SNR)")
     axs[0, 0].set_ylabel("SNR [dB]")
 
