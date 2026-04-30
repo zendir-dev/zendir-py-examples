@@ -238,7 +238,7 @@ async def main(simulation: Simulation) -> None:
     data_power = await simulation.query_dataframe(
         await solar_panel.get_message("Out_PowerMsg")
     )
-    ax_bottom_right.plot(data_power["Time"], data_power["Power"])
+    ax_bottom_right.plot(data_power["Time"], data_power["NominalPower"])
     ax_bottom_right.set_title("Solar Panel Power")
     ax_bottom_right.set_xlabel("Time [s]")
     ax_bottom_right.set_ylabel("Power [W]")
