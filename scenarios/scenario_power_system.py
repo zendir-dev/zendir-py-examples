@@ -178,7 +178,7 @@ async def main(simulation: Simulation) -> None:
     )
     ax3.plot(
         data.loc[:, "Time"].values,
-        data.loc[:, "Power"].values,
+        data.loc[:, "NominalPower"].values,
         label="Power [W]",
         color="orange",
     )

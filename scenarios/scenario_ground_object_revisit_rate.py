@@ -272,17 +272,17 @@ def format_revisit_report(metrics: Mapping[str, Any]) -> str:
         f"  Pass count: {metrics.get('n_passes', 0)}",
         f"  Total access time [s]: {metrics.get('total_access_s', float('nan')):.1f}",
         f"  Accesses per day: {metrics.get('accesses_per_day', float('nan')):.4f}",
-        f"  Mean revisit time (mean off-access gap, pass end → next start) [s]: {metrics.get('mean_revisit_time_s', float('nan')):.1f}",
+        f"  Mean revisit time (mean off-access gap, pass end -> next start) [s]: {metrics.get('mean_revisit_time_s', float('nan')):.1f}",
         f"  Time-average gap (analysis duration / pass count) [s]: {metrics.get('time_average_gap_s', float('nan')):.1f}",
         f"  Mean inter-pass start interval [s]: {metrics.get('mean_inter_pass_start_gap_s', float('nan')):.1f}",
         f"  Maximum revisit (off-access) [s]: {metrics.get('max_revisit_time_s', float('nan')):.1f}",
         f"  Max inter-pass start gap [s]: {metrics.get('max_inter_pass_start_gap_s', float('nan')):.1f}",
-        "  Percentiles — off-access gap (s): "
+        "  Percentiles - off-access gap (s): "
         f"p50={metrics.get('revisit_sep_p50_s', float('nan')):.1f}, "
         f"p75={metrics.get('revisit_sep_p75_s', float('nan')):.1f}, "
         f"p90={metrics.get('revisit_sep_p90_s', float('nan')):.1f}, "
         f"p95={metrics.get('revisit_sep_p95_s', float('nan')):.1f}",
-        "  Percentiles — pass-start to pass-start (s): "
+        "  Percentiles - pass-start to pass-start (s): "
         f"p50={metrics.get('revisit_start_p50_s', float('nan')):.1f}, "
         f"p75={metrics.get('revisit_start_p75_s', float('nan')):.1f}, "
         f"p90={metrics.get('revisit_start_p90_s', float('nan')):.1f}, "
@@ -384,7 +384,7 @@ async def main(simulation: Simulation) -> None:
                 % (exc,)
             )
 
-    fig, (ax_elev, ax_pass) = plt.subplots(2, 1, figsize=(11, 8), sharex=True)
+    fig, (ax_elev, ax_pass) = plt.subplots(2, 1, figsize=(11, 8))
     fig.suptitle("Ground site access & revisit (IsAccessible segments)", fontsize=14)
 
     time_col: str = "Time"
