@@ -255,16 +255,6 @@ async def main(simulation: Simulation) -> None:
         PacketSize=kilobytes_to_bits(1),
     )
 
-    power_bus: Behaviour = await spacecraft.add_behaviour("PowerBus")
-    battery: Object = await spacecraft.add_child(
-        "Battery",
-        NominalCapacity=1.0,
-        NominalVoltage=12.0,
-        ChargeFraction=0.1,
-    )
-    await power_bus.invoke("Connect", battery, transmitter)
-    await transmitter.get_model("TransmitterPowerModel")
-
     await spacecraft.add_child(
         "GuidanceComputer", PointingMode="Nadir", ControllerMode="MRP"
     )
@@ -283,16 +273,6 @@ async def main(simulation: Simulation) -> None:
         Power=JAMMER_TX_POWER_DBM,
         IsJamming=False,
     )
-
-    adv_power_bus: Behaviour = await adversary.add_behaviour("PowerBus")
-    adv_battery: Object = await adversary.add_child(
-        "Battery",
-        NominalCapacity=2.0,
-        NominalVoltage=12.0,
-        ChargeFraction=0.95,
-    )
-    await adv_power_bus.invoke("Connect", adv_battery, jammer)
-    await jammer.get_model("TransmitterPowerModel")
 
     # Ground pointing: align spacecraft body ``Alignment_B`` toward the geodetic
     # target (same pattern as ``scenario_gimballed_antenna.py``). Default antenna
@@ -352,6 +332,7 @@ async def main(simulation: Simulation) -> None:
     )
 
     df_link: Any = await simulation.query_dataframe(link_msg)
+    df_link_jammer: Any = await simulation.query_dataframe(jammer_link_msg)
     time_s: np.ndarray = np.asarray(df_link["Time"], dtype=np.float64)
 
     axs[0, 0].plot(
