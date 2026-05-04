@@ -87,49 +87,6 @@ printer.clear()
 printer.set_verbosity(printer.SUCCESS_VERBOSITY)
 
 
-async def _write_pre_tick_state_json(simulation: Simulation) -> None:
-    """
-    Fetch simulation state from the API and write readable JSON to disk.
-
-    Writes ``PRE_TICK_STATE_FILENAME`` next to this script **and** under the
-    process **current working directory** when those directories differ, so the
-    file is visible whether you look beside the ``.py`` file or where you ran
-    ``python ...`` from.
-
-    :param simulation: Active simulation whose ``get_state()`` snapshot is saved.
-    :raises RuntimeError: If the API returns no state (export not available).
-    """
-    state: Any = await simulation.get_state()
-    if state is None:
-        raise RuntimeError(
-            "Simulation.get_state() returned None; the server did not return a "
-            "state payload. The pre-tick JSON file was not written."
-        )
-    if not isinstance(state, dict):
-        raise RuntimeError(
-            f"Expected get_state() to return a dict, got {type(state).__name__}."
-        )
-
-    script_dir: Path = Path(__file__).resolve().parent
-    next_to_script: Path = script_dir / PRE_TICK_STATE_FILENAME
-    in_cwd: Path = Path.cwd() / PRE_TICK_STATE_FILENAME
-    paths: list[Path] = [next_to_script]
-    if in_cwd.resolve() != next_to_script.resolve():
-        paths.append(in_cwd)
-
-    for out_path in paths:
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        with out_path.open("w", encoding="utf-8") as handle:
-            json.dump(state, handle, indent=2, ensure_ascii=False)
-
-        printer.success(f"Saved pre-tick simulation state JSON:\n  {out_path}")
-
-    # Plain stdout helps when running outside Cursor so the path is still visible.
-    print("\nPre-tick state JSON path(s):")
-    for p in paths:
-        print(f"  {p.resolve()}")
-
-
 def _cross_track_offset_m(
     position_m: np.ndarray, velocity_m_s: np.ndarray, separation_m: float
 ) -> np.ndarray:
@@ -309,10 +266,6 @@ async def main(simulation: Simulation) -> None:
     )
     await simulation.track_object(link_msg)
     await simulation.track_object(jammer_link_msg)
-
-    # Snapshot the entire simulation configuration as returned by the API
-    # **before** advancing physics (same payload as ``Simulation.save_state``).
-    await _write_pre_tick_state_json(simulation)
 
     # Phase 1: legitimate downlink only (jammer installed but ``IsJamming`` false).
     await simulation.tick_duration(step=SIM_STEP_S, time=JAM_START_S)
