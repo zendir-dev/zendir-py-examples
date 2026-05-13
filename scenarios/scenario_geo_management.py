@@ -6,16 +6,21 @@ This code is developed by Zendir to aid with communication
 to the public API. All code is under the the license provided
 with the 'zendir' module. Copyright Zendir, 2025.
 
-GEO Management — geostationary telecommunications satellite (35,786 km altitude)
-managed over a multi-day mission: thermal balance for telecom electronics,
-radiation environment, electrical power and storage, attitude toward a primary
-ground site, and RF links to a network of ground stations.
+GEO Satellite Operations Scenario
+=================================
+A 7-day simulation of a 2500 kg geostationary telecommunications satellite
+at 42,164 km semi-major axis, starting at March equinox 2025.
 
-Managing the vehicle includes: eclipse-related thermal swings and active
-thermal control of the telecom electronics (275–285 K band on the summary
-plots); monitoring accumulated TID on each face; balancing generation, loads,
-and battery state; onboard data storage fill; and multi-station RF contact.
-Solar array degradation is modeled (%/yr); battery leakage ramps on at day 3.
+The scenario demonstrates:
+- Thermal control: PID-regulated 300W heater maintaining telecom electronics at 280K
+- Radiation monitoring: 5 panels tracking TID on each spacecraft face, plus a
+  transient deep space radiation burst on day 2 hitting the +Y panel
+- Power system: 6 m² solar array with accelerated degradation, 2000 Ah battery with leakage from day 3
+- Attitude control: 3-axis reaction wheels pointing transmitter at Sydney ground station
+- Data management: Sawtooth storage pattern with 5h accumulate / 1h downlink cycles
+  across 4 rotating ground stations (Sydney, Tokyo, Mumbai, Singapore)
+
+Output: 6-panel summary plot showing thermal, radiation, power, and data trends.
 """
 
 import numpy as np
@@ -26,11 +31,10 @@ from zendir import printer, runner, Object, Simulation, Client, Behaviour, Model
 from zendir.maths import astro, constants
 import credential_helper
 
-# Prepare the print settings
 printer.clear()
 printer.set_verbosity(printer.SUCCESS_VERBOSITY)
 
-# Ground station locations (lat/lon, deg) for the telecom network and primary pointing site
+# Four ground stations in Asia-Pacific region for RF contact rotation
 OBSERVATION_TARGETS = [
     {"name": "Sydney", "lat": -33.87, "lon": 151.21},
     {"name": "Tokyo", "lat": 35.68, "lon": 139.69},
@@ -38,22 +42,22 @@ OBSERVATION_TARGETS = [
     {"name": "Singapore", "lat": 1.35, "lon": 103.82},
 ]
 
-# GEO orbit geometry (equatorial circular GEO)
-GEO_ALTITUDE = 35786000  # meters above Earth surface
-GEO_SEMI_MAJOR_AXIS = 42164000  # meters from Earth center
+# GEO orbital parameters
+GEO_ALTITUDE = 35786000
+GEO_SEMI_MAJOR_AXIS = 42164000
 
 
 async def main(simulation: Simulation) -> None:
 
-    ############################
-    # GEO MISSION SETUP        #
-    ############################
+    # =========================================================================
+    # SPACECRAFT SETUP
+    # =========================================================================
+    # March equinox epoch provides eclipse season context for GEO operations
 
-    # Epoch at March equinox: stronger eclipse-season context for GEO management
     epoch = dt.datetime(2025, 3, 20, 12, 0, 0)
     await simulation.get_system("SolarSystem", Epoch=epoch)
 
-    # Compute GEO orbit - circular equatorial orbit
+    # Circular equatorial GEO orbit
     orbit: tuple = astro.classical_to_vector_elements(
         semi_major_axis=GEO_SEMI_MAJOR_AXIS,
         eccentricity=0.0,
@@ -63,10 +67,10 @@ async def main(simulation: Simulation) -> None:
         true_anomaly=0.0,
     )
 
-    # Spacecraft in GEO: mass and inertia representative of a managed GEO platform
+    # 2500 kg spacecraft with diagonal inertia tensor
     spacecraft: Object = await simulation.add_object(
         "Spacecraft",
-        TotalMass=2500.0,  # Typical GEO comms/observation satellite mass
+        TotalMass=2500.0,
         TotalCenterOfMassB_B=np.array([0, 0, 0]),
         TotalMomentOfInertiaB_B=np.array(
             [[2000, 0, 0], [0, 1800, 0], [0, 0, 1500]]
@@ -77,22 +81,13 @@ async def main(simulation: Simulation) -> None:
         AttitudeRate=np.array([0.0, 0.0, 0.0]),
     )
 
-    #######################
-    # THERMAL MANAGEMENT  #
-    #######################
-    #
-    # GEO spacecraft thermal control for telecom electronics. Operational range
-    # is 275-285 K (±5K). A heater maintains temperature via conduction.
-    #
-    # Network:
-    #   bus_thermal (PowerGeneration) ──► telecom_thermal ◄── heater_thermal (hot, 320K)
-    #                                          │
-    #                                          ▼
-    #                                     radiator_thermal ──► space
+    # =========================================================================
+    # THERMAL CONTROL SYSTEM
+    # =========================================================================
+    # Four-node thermal network: bus -> telecom rack <- heater -> radiator
+    # Heater maintains telecom electronics at 280K via PID control
 
-    # 1. Radiator - heat rejection to space (cold sink)
-    # SurfaceArea sized so the electronics-to-radiator heat path is small enough that
-    # a 300 W heater can hold the rack at 280 K above a colder bus.
+    # Radiator: 20 kg, 0.3 m², radiates to space (emissivity 0.85)
     radiator: Object = await spacecraft.add_child("PhysicalObject")
     await radiator.set(Name="Radiator")
     await radiator.set(Mass=20.0)
@@ -105,9 +100,7 @@ async def main(simulation: Simulation) -> None:
     await radiator_thermal.set(EnableSpaceRadiation=True)
     await radiator_thermal.set(Emissivity=0.85)
 
-    # 2. Bus thermal - spacecraft internal electronics with PowerGeneration
-    # PowerGeneration is sized so the bus settles BELOW the telecom setpoint
-    # (~275 K vs rack target 280 K). Heater keeps the rack warmer than the bus.
+    # Bus thermal node: 2.0 m² surface, 1800W internal heat generation
     bus_thermal: Model = await spacecraft.get_model("ThermalModel")
     await bus_thermal.set(ThermalConductivity=205.0)
     await bus_thermal.set(SpecificHeatCapacity=900.0)
@@ -115,47 +108,40 @@ async def main(simulation: Simulation) -> None:
     await bus_thermal.set(Temperature=275.0)
     await bus_thermal.set(SurfaceArea=2.0)
     await bus_thermal.set(EnableSpaceRadiation=False)
-    await bus_thermal.set(PowerGeneration=1800.0)  # Settles bus below camera setpoint
+    await bus_thermal.set(PowerGeneration=1800.0)
 
-    # 3. Survival heater - GEO telecom rack heater (~300 W class)
-    # NOTE: The Heater object overwrites its ThermalModel.PowerGeneration each step
-    # with the FSW-commanded power, capped by MaxThermalPower. Setting
-    # PowerGeneration on heater_thermal manually is ineffective.
-    NOMINAL_HEATER_POWER = 300.0  # Realistic GEO telecom survival heater
+    # 300W survival heater for telecom electronics
+    NOMINAL_HEATER_POWER = 300.0
     telecom_heater: Object = await spacecraft.add_child("Heater")
     await telecom_heater.set(Name="Telecom Heater")
     await telecom_heater.set(Mass=2.0)
     await telecom_heater.set(NominalPower=NOMINAL_HEATER_POWER)
-    await telecom_heater.set(MaxThermalPower=NOMINAL_HEATER_POWER)  # Lift default 10W cap
+    await telecom_heater.set(MaxThermalPower=NOMINAL_HEATER_POWER)
     await telecom_heater.set(IsActive=True)
     heater_thermal: Model = await telecom_heater.get_model("ThermalModel")
     await heater_thermal.set(ThermalConductivity=205.0)
     await heater_thermal.set(SpecificHeatCapacity=900.0)
     await heater_thermal.set(Thickness=0.02)
-    await heater_thermal.set(Temperature=300.0)  # Slight headroom vs rack setpoint
+    await heater_thermal.set(Temperature=300.0)
     await heater_thermal.set(SurfaceArea=0.3)
     await heater_thermal.set(EnableSpaceRadiation=False)
 
-    # 4. HeaterManagementSoftware - PID controller for telecom rack thermal regulation
-    # Target: maintain rack at 280K (midpoint of 275-285K operational range)
+    # PID heater controller: K=380, Ki=0.35, P=2.5, target 280K
     NOMINAL_HEATER_MIN = 0.0
-    NOMINAL_HEATER_MAX = NOMINAL_HEATER_POWER  # Match heater capacity
+    NOMINAL_HEATER_MAX = NOMINAL_HEATER_POWER
     heater_fsw: Behaviour = await spacecraft.add_behaviour("HeaterManagementSoftware")
     await heater_fsw.set(Name="Telecom Heater Controller")
     await heater_fsw.set(MaxPower=NOMINAL_HEATER_MAX)
     await heater_fsw.set(MinPower=0.0)
-    # Detuned PID: low damping and weak integral so commanded power swings more
-    # with temperature error (demo visibility); still bounded by MaxPower.
-    await heater_fsw.set(K=380.0)   # Proportional gain (W/K error) — high for large swings
-    await heater_fsw.set(Ki=0.35)   # Weak integral — less smoothing of command
-    await heater_fsw.set(P=2.5)     # Low derivative damping — more overshoot / ringing
+    await heater_fsw.set(K=380.0)
+    await heater_fsw.set(Ki=0.35)
+    await heater_fsw.set(P=2.5)
 
-    # Connect heater to controller
     await telecom_heater.set(
         In_ControlPowerMsg=await heater_fsw.get_message("Out_PowerMsg")
     )
 
-    # Telecom electronics rack (thermal mass; replaces camera payload)
+    # Telecom electronics rack: 35 kg thermal mass, target 280K
     telecom_rack: Object = await spacecraft.add_child("PhysicalObject")
     await telecom_rack.set(Name="Telecom Electronics")
     await telecom_rack.set(Mass=35.0)
@@ -168,7 +154,7 @@ async def main(simulation: Simulation) -> None:
     await telecom_thermal.set(SurfaceArea=0.5)
     await telecom_thermal.set(EnableSpaceRadiation=False)
 
-    # Thermal network: heater → rack → radiator; bus weakly coupled to rack
+    # Thermal conduction network
     await heater_thermal.invoke("Connect", telecom_thermal, 0.05, "Conduction")
     await bus_thermal.invoke("Connect", telecom_thermal, 0.002, "Conduction")
     await telecom_thermal.invoke("Connect", radiator_thermal, 0.001, "Conduction")
@@ -178,74 +164,63 @@ async def main(simulation: Simulation) -> None:
         In_ThermalMsg=await telecom_thermal.get_message("Out_ThermalMsg")
     )
 
-    #########################
-    # RADIATION MANAGEMENT  #
-    #########################
+    # =========================================================================
+    # RADIATION MONITORING
+    # =========================================================================
+    # 5 radiation panels on +X, -X, +Y, -Y, +Z faces (no panel on -Z/Earth-facing)
+    # 3mm aluminum shielding, 16 kg each, 2 m² exposed area
 
-    # Five radiation panels: dose per face plus thermal coupling to the bus
-    # The spacecraft is modeled as a cube with telecom / Earth-facing assets on -Z
-    # Panels are placed on all other faces: +X, -X, +Y, -Y, +Z (zenith)
-    # Each panel also has a SolarExposureThermalModel to compute solar heating
-    
-    # Common radiation panel parameters
-    # Based on realistic GEO radiation environment:
-    # - TID at GEO: ~50 krad/year (~10 krad over 5 days behind 3mm Al shielding)
-    # - Aluminum linear attenuation: ~15-20 m⁻¹ for MeV-range electrons/protons
-    # - Dose conversion scaled to produce ~1-10 krad (10-100 Gy) over 5-day mission
-    PANEL_AREA = 2.0  # Exposed surface area per face (m^2)
-    PANEL_MASS = 16.0  # kg per panel (3 mm Al over 2 m²); non-zero mass for panel thermal mass
+    PANEL_AREA = 2.0
+    PANEL_MASS = 16.0
     panel_params = {
         "Mass": PANEL_MASS,
         "Area": PANEL_AREA,
-        "ShieldingThickness": 0.003,  # 3mm aluminum shielding (optimal for GEO)
-        "ShieldingDensity": 2700.0,  # Aluminum density (kg/m^3)
-        "LinearAttenuationCoefficient": 18.0,  # Attenuation for aluminum at MeV energies (m⁻¹)
-        "EnergyToDoseConversionEfficiency": 1.0e-7,  # Scaled for realistic GEO dose rates
-        "SingleEventEffectAverageParticleEnergy": 1.6e-13,  # ~1 MeV particles
+        "ShieldingThickness": 0.003,
+        "ShieldingDensity": 2700.0,
+        "LinearAttenuationCoefficient": 18.0,
+        "EnergyToDoseConversionEfficiency": 1.0e-7,
+        "SingleEventEffectAverageParticleEnergy": 1.6e-13,
     }
     
-    # Solar thermal model parameters for panels (spacecraft surface coatings)
-    # Each panel can absorb solar heat and radiate to space
+    # Solar thermal properties for panel surfaces
     solar_thermal_params = {
         "ExposedArea": PANEL_AREA,
-        "SolarAbsorbance": 0.25,  # Low absorbance thermal control coating
+        "SolarAbsorbance": 0.25,
         "ShadowFactor": 0.0,
-        "EnableSpaceRadiation": True,  # Allow panels to radiate heat to space
-        "SurfaceArea": PANEL_AREA,  # Radiating surface area
-        "Emissivity": 0.85,  # High emissivity radiator coating
-        "SpecificHeatCapacity": 900.0,  # Aluminium-like; 16 kg × 900 J/(kg·K) per panel
+        "EnableSpaceRadiation": True,
+        "SurfaceArea": PANEL_AREA,
+        "Emissivity": 0.85,
+        "SpecificHeatCapacity": 900.0,
         "ThermalConductivity": 205.0,
         "Thickness": 0.003,
-        "Temperature": 290.0,  # Initial temperature
+        "Temperature": 290.0,
     }
 
-    # Panel on +X face (right side)
+    # +X face panel (roll +90°)
     radiation_panel_px: Object = await spacecraft.add_child("RadiationPanel", **panel_params)
-    await radiation_panel_px.invoke("RollDegrees", 90.0)  # Rotate to face +X
+    await radiation_panel_px.invoke("RollDegrees", 90.0)
     solar_thermal_px: Model = await radiation_panel_px.get_model("SolarExposureThermalModel", **solar_thermal_params)
 
-    # Panel on -X face (left side)
+    # -X face panel (roll -90°)
     radiation_panel_mx: Object = await spacecraft.add_child("RadiationPanel", **panel_params)
-    await radiation_panel_mx.invoke("RollDegrees", -90.0)  # Rotate to face -X
+    await radiation_panel_mx.invoke("RollDegrees", -90.0)
     solar_thermal_mx: Model = await radiation_panel_mx.get_model("SolarExposureThermalModel", **solar_thermal_params)
 
-    # Panel on +Y face (front)
+    # +Y face panel (pitch -90°)
     radiation_panel_py: Object = await spacecraft.add_child("RadiationPanel", **panel_params)
-    await radiation_panel_py.invoke("PitchDegrees", -90.0)  # Rotate to face +Y
+    await radiation_panel_py.invoke("PitchDegrees", -90.0)
     solar_thermal_py: Model = await radiation_panel_py.get_model("SolarExposureThermalModel", **solar_thermal_params)
 
-    # Panel on -Y face (back)
+    # -Y face panel (pitch +90°)
     radiation_panel_my: Object = await spacecraft.add_child("RadiationPanel", **panel_params)
-    await radiation_panel_my.invoke("PitchDegrees", 90.0)  # Rotate to face -Y
+    await radiation_panel_my.invoke("PitchDegrees", 90.0)
     solar_thermal_my: Model = await radiation_panel_my.get_model("SolarExposureThermalModel", **solar_thermal_params)
 
-    # Panel on +Z face (zenith/space-facing, opposite to Earth-facing telecom side)
+    # +Z face panel (pitch 180°, zenith-facing)
     radiation_panel_pz: Object = await spacecraft.add_child("RadiationPanel", **panel_params)
-    await radiation_panel_pz.invoke("PitchDegrees", 180.0)  # Rotate to face +Z (away from Earth)
+    await radiation_panel_pz.invoke("PitchDegrees", 180.0)
     solar_thermal_pz: Model = await radiation_panel_pz.get_model("SolarExposureThermalModel", **solar_thermal_params)
 
-    # Note: No panel on -Z face (Earth-facing / telecom side)
-    # Outward body-frame normals for radiation / TID legend labels
     PANEL_NORMAL_LABELS = [
         "Normal +X",
         "Normal −X",
@@ -254,7 +229,6 @@ async def main(simulation: Simulation) -> None:
         "Normal +Z",
     ]
 
-    # Store panels and their thermal models in lists
     radiation_panels = [
         radiation_panel_px, radiation_panel_mx,
         radiation_panel_py, radiation_panel_my,
@@ -266,91 +240,65 @@ async def main(simulation: Simulation) -> None:
         solar_thermal_pz
     ]
     
-    # Connect each panel's thermal model to the main spacecraft bus thermal via conduction
-    # Conductance is kept small (0.02 m²) to limit the cold-sinking effect of the
-    # space-radiating panels on the spacecraft bus.
+    # Connect panel thermal models to bus (0.02 m² conductance each)
     for panel_thermal in panel_thermal_models:
         await bus_thermal.invoke("Connect", panel_thermal, 0.02, "Conduction")
 
-    ##############################
-    # DEEP SPACE RADIATION BURST #
-    ##############################
-    #
-    # A transient radiation source from deep space (e.g., distant gamma-ray burst or
-    # solar energetic particle event reflected off interplanetary medium). Positioned
-    # perpendicular to the sun-spacecraft line to hit the +Y panel which normally
-    # receives minimal solar radiation at equinox.
+    # =========================================================================
+    # DEEP SPACE RADIATION BURST
+    # =========================================================================
+    # Transient high-energy cosmic ray source from +Y direction (1 million km)
+    # Activates on day 2 for 2 hours, primarily affecting +Y panel
 
-    # Create the deep space radiation source on a distant parent object
     deep_space_source_parent: Object = await simulation.add_object("UniverseObject")
-    # Position far in the +Y direction (perpendicular to sun at equinox)
     spacecraft_position = await spacecraft.get("Position")
     await deep_space_source_parent.set(
-        Position=np.array(spacecraft_position) + np.array([0, 1e9, 0])  # 1 million km in +Y
+        Position=np.array(spacecraft_position) + np.array([0, 1e9, 0])
     )
 
-    # Create the radiation point source - initially disabled
     deep_space_source: Object = await deep_space_source_parent.add_child("RadiationSource")
-    await deep_space_source.set(FluxAtReference=constants.EARTH_SOLAR_FLUX * 50.0)  # 50x solar flux (intense burst)
-    await deep_space_source.set(ReferenceDistance=1e9)  # Reference at 1 million km
-    await deep_space_source.set(ParticleEnergy=1.6e-12)  # 10 MeV particles (high energy cosmic rays)
-    await deep_space_source.set(IsEnabled=False)  # Start disabled, will enable during burst
+    await deep_space_source.set(FluxAtReference=constants.EARTH_SOLAR_FLUX * 50.0)
+    await deep_space_source.set(ReferenceDistance=1e9)
+    await deep_space_source.set(ParticleEnergy=1.6e-12)
+    await deep_space_source.set(IsEnabled=False)
 
-    # Event timing for radiation burst (occurs on day 2, segment 8-9)
-    RADIATION_BURST_START_SECONDS = 2 * 86400.0  # Start of day 2
-    RADIATION_BURST_DURATION_SECONDS = 2 * 3600.0  # 2 hour burst duration
+    RADIATION_BURST_START_SECONDS = 2 * 86400.0
+    RADIATION_BURST_DURATION_SECONDS = 2 * 3600.0
 
-    ####################
-    # POWER MANAGEMENT #
-    ####################
-    #
-    # EPS topology (sources feed the battery hub via Out-Out, loads hang off battery Out-In):
-    #
-    #   SolarPanel.Out ────────── Battery.Out
-    #                                 │
-    #                  ┌──────────────┼──────────────┬──────────────┬──────────────┬──────────────┐
-    #                Out             Out            Out            Out            Out
-    #                 │               │              │              │              │
-    #                In              In             In             In             In
-    #          telecom_heater   obc.Computer  reaction_wheels  sc_transmitter  sc_receiver
-    #
-    # Solar panel output terminal is tied to the battery output hub (Out–Out).
-    # Each load is wired from battery Out to the load In (ConnectTerminals with Out, In).
+    # =========================================================================
+    # ELECTRICAL POWER SYSTEM
+    # =========================================================================
+    # Solar array (6 m², 28% efficiency) -> Battery (2000 Ah) -> Loads
+    # Solar degradation: 500%/year (accelerated for demonstration)
+    # Battery leakage: activates day 3 at rate 0.005
 
-    # Solar array
     solar_panel: Object = await spacecraft.add_child(
         "SolarPanel",
         Area=6.0,
         Efficiency=0.28,
     )
-    # Solar array health: degradation (%/yr) via SolarPanelDegradationErrorModel.
     SOLAR_DEGRADATION_RATE_PCT_PER_YEAR = 500.0
     solar_degradation: Model = await solar_panel.get_model(
         "SolarPanelDegradationErrorModel",
         DegradationRate=SOLAR_DEGRADATION_RATE_PCT_PER_YEAR,
     )
 
-    # Battery
     battery: Object = await spacecraft.add_child(
         "Battery",
         ChargeFraction=0.80,
         NominalCapacity=2000.0,
     )
-    # Battery health: leakage off until day 3, then non-zero (see mission loop).
-    BATTERY_LEAKAGE_START_SECONDS = 3 * 86400.0  # start of day 3
-    BATTERY_LEAKAGE_POWER_RATE = 0.002  # stronger drain after day 3 (was 0.0002)
+    BATTERY_LEAKAGE_START_SECONDS = 3 * 86400.0
+    BATTERY_LEAKAGE_POWER_RATE = 0.005
     battery_leakage: Model = await battery.get_model(
         "BatteryLeakageErrorModel",
         PowerLeakageRate=0.0,
     )
 
-    # Power bus
     power_bus: Behaviour = await spacecraft.add_behaviour("PowerBus")
-
-    # SOURCE -> HUB: SolarPanel.Out -> Battery.Out (Out-Out tie at the bus hub)
     await power_bus.invoke("ConnectTerminals", solar_panel, battery, "Out", "Out")
 
-    # On-board computer (constant base load)
+    # On-board computer: 80W running, 30W safe, 5W shutdown
     obc: Object = await spacecraft.add_child("Computer")
     obc_power: Model = await obc.get_model(
         "ComputerPowerModel",
@@ -359,15 +307,15 @@ async def main(simulation: Simulation) -> None:
         PowerShutdown=5.0,
     )
 
-    # Hub to loads: battery Out → each load In
     await power_bus.invoke("ConnectTerminals", battery, telecom_heater, "Out", "In")
     await power_bus.invoke("ConnectTerminals", battery, obc, "Out", "In")
 
-    ####################
-    # ADCS / POINTING  #
-    ####################
+    # =========================================================================
+    # ATTITUDE DETERMINATION AND CONTROL
+    # =========================================================================
+    # 3-axis reaction wheel array with MRP feedback controller
+    # Points transmitter boresight at Sydney (primary ground station)
 
-    # Reaction wheels for attitude control toward primary ground site
     reaction_wheels: Object = await spacecraft.add_child("ReactionWheelArray")
     await reaction_wheels.add_child(
         "ReactionWheel", WheelSpinAxis_B=np.array([1, 0, 0])
@@ -379,23 +327,22 @@ async def main(simulation: Simulation) -> None:
         "ReactionWheel", WheelSpinAxis_B=np.array([0, 0, 1])
     )
 
-    # Add power model to reaction wheel array for realistic power consumption
     rw_power: Model = await reaction_wheels.get_model(
         "ReactionWheelArrayPowerModel",
-        DriveStandbyPowerPerWheel=5.0,  # 5W standby per wheel (15W total for 3 wheels)
-        DriveEfficiency=0.85,  # 85% drive efficiency
+        DriveStandbyPowerPerWheel=5.0,
+        DriveEfficiency=0.85,
     )
 
-    # Connect reaction wheel array to power bus (Battery.Out -> RWA.In)
     await power_bus.invoke("ConnectTerminals", battery, reaction_wheels, "Out", "In")
 
-    # Add navigation software
     navigator: Behaviour = await spacecraft.add_behaviour("SimpleNavigationSoftware")
 
-    ###############################
-    # GROUND NETWORK & SPACECRAFT #
-    # RF (uplink / downlink)      #
-    ###############################
+    # =========================================================================
+    # GROUND NETWORK AND RF COMMUNICATIONS
+    # =========================================================================
+    # 4 ground stations with uplink (2.0 GHz) and downlink (2.2 GHz)
+    # Each station has 100 MB storage for received data
+    # Plus sentinel station for disabling downlink during accumulate phases
 
     UPLINK_HZ = 2.0e9
     DOWNLINK_HZ = 2.2e9
@@ -416,9 +363,8 @@ async def main(simulation: Simulation) -> None:
         await gs_rx.set(Frequency=DOWNLINK_HZ, Bandwidth=10.0e6)
         access_msg = await gs.invoke("TrackObject", spacecraft)
 
-        # Per-station receive storage for downlinked data
         gs_storage: Object = await gs.add_child("PartitionedDataStorage")
-        await gs_storage.set(Capacity=100 * 1024 * 1024)  # 100 MB per station
+        await gs_storage.set(Capacity=100 * 1024 * 1024)
         gs_storage_writer: Object = await gs_storage.add_child("DataStorageMessageWriter")
         gs_rx_writer = await gs_rx.get_model("ReceiverMessageWriterModel")
         await gs_rx_writer.set(Storage=gs_storage.get_id())
@@ -433,22 +379,21 @@ async def main(simulation: Simulation) -> None:
             "storage_writer": gs_storage_writer,
         })
 
-    # No-contact sentinel ground station (always out of view for GEO satellite)
-    # Used to disable downlink during accumulate phases
+    # Sentinel station with impossible access (used to disable downlink)
     no_contact_gs: Object = await simulation.add_object(
         "GroundStation",
         Latitude=0.0,
-        Longitude=-90.0,  # Opposite side of Earth from telecom coverage
+        Longitude=-90.0,
         Altitude=0.0,
-        MinimumElevation=89.0,  # Nearly impossible elevation requirement
-        MaximumRange=1000.0,  # Very short range ensures no access
+        MinimumElevation=89.0,
+        MaximumRange=1000.0,
     )
     no_contact_access = await no_contact_gs.invoke("TrackObject", spacecraft)
 
     ground_station_primary: Object = ground_stations[0]["gs"]
     primary_access = ground_stations[0]["access"]
 
-    # Spacecraft RF: receive uplink, transmit downlink; onboard storage
+    # Spacecraft RF: 50 MB onboard storage, 10s write interval, 1 Mbps downlink
     sc_receiver: Object = await spacecraft.add_child("Receiver")
     await sc_receiver.set(Frequency=UPLINK_HZ, Bandwidth=10.0e6)
 
@@ -461,7 +406,7 @@ async def main(simulation: Simulation) -> None:
     )
 
     sc_data_storage: Object = await spacecraft.add_child("PartitionedDataStorage")
-    await sc_data_storage.set(Capacity=50 * 1024 * 1024)  # 50 MB
+    await sc_data_storage.set(Capacity=50 * 1024 * 1024)
 
     sc_storage_writer: Object = await sc_data_storage.add_child("DataStorageMessageWriter")
     await sc_storage_writer.set(WriteInterval=10.0)
@@ -472,17 +417,12 @@ async def main(simulation: Simulation) -> None:
     await rx_writer.set(Storage=sc_data_storage.get_id())
 
     tx_storage = await sc_transmitter.get_model("TransmitterStorageModel")
-    # Start with no-contact access to begin in accumulate mode (downlink disabled).
-    # The mission loop switches In_AccessMsg between no_contact_access (accumulate)
-    # and the current downlink station's access (drain). If In_AccessMsg switching
-    # does not cause buffer drain, an alternative is to modulate sc_transmitter
-    # BitRate between ~0 (accumulate) and 1.0e6 (downlink) instead.
     await tx_storage.set(MessageWriter=sc_storage_writer, In_AccessMsg=no_contact_access)
 
     await power_bus.invoke("ConnectTerminals", battery, sc_transmitter, "Out", "In")
     await power_bus.invoke("ConnectTerminals", battery, sc_receiver, "Out", "In")
 
-    # Point spacecraft RF boresight toward primary ground station (Sydney)
+    # Ground pointing FSW: align transmitter boresight to Sydney
     transmitter_local_up = await sc_transmitter.get("LocalUp")
     ground_point_fsw: Behaviour = await spacecraft.add_behaviour(
         "GroundLocationPointingSoftware",
@@ -493,14 +433,13 @@ async def main(simulation: Simulation) -> None:
         In_GroundStateMsg=await ground_station_primary.get_message("Out_GroundStateMsg"),
     )
 
-    # Add attitude tracking error software
     attitude_error_fsw: Behaviour = await spacecraft.add_behaviour(
         "AttitudeReferenceErrorSoftware",
         In_NavigationAttitudeMsg=await navigator.get_message("Out_NavigationAttitudeMsg"),
         In_AttitudeReferenceMsg=await ground_point_fsw.get_message("Out_AttitudeReferenceMsg"),
     )
 
-    # Add MRP feedback controller
+    # MRP feedback controller: K=2.5, P=25, Ki=-1
     mrp_controller: Behaviour = await spacecraft.add_behaviour(
         "MRPFeedbackControlSoftware",
         K=2.5,
@@ -512,102 +451,67 @@ async def main(simulation: Simulation) -> None:
         In_RWArraySpeedMsg=await reaction_wheels.get_message("Out_RWArraySpeedMsg"),
     )
 
-    # Add motor torque mapping software
     motor_torque_fsw: Behaviour = await spacecraft.add_behaviour(
         "RWTorqueMappingSoftware",
         In_CommandTorqueMsg=await mrp_controller.get_message("Out_CommandTorqueMsg"),
         In_RWArrayConfigMsg=await reaction_wheels.get_message("Out_RWArrayConfigMsg"),
     )
 
-    # Connect reaction wheels to motor torque commands
     await reaction_wheels.set(
         In_MotorTorqueArrayMsg=await motor_torque_fsw.get_message("Out_MotorTorqueArrayMsg")
     )
 
-    # Solar / sun geometry (SolarModel) for eclipse tracking
     solar_model: Model = await spacecraft.get_model("SolarModel")
 
-    ##############################
-    # TELEMETRY / TRACKING       #
-    ##############################
+    # =========================================================================
+    # TELEMETRY TRACKING
+    # =========================================================================
+    # 60-second sample interval for all tracked channels
 
-    # Sample interval for logged time series used in the management summary plots in seconds
     await simulation.set_tracking_interval(interval=60.0)
 
-    # Logged channels for the GEO management dashboard (see plotting section below).
     await simulation.track_object(await bus_thermal.get_message("Out_ThermalMsg"))
-
-    # Same telecom rack thermal series the heater controller reads for feedback
     await simulation.track_object(await telecom_thermal.get_message("Out_ThermalMsg"))
-
-    # Heater commanded power (NominalPower column in the dataframe)
     await simulation.track_object(await heater_fsw.get_message("Out_PowerMsg"))
-
-    # Heater output (tracks the heater object's actual power output)
     await simulation.track_object(await telecom_heater.get_message("Out_PowerMsg"))
 
-    # Telemetry: per-panel radiation messages
     for panel in radiation_panels:
         await simulation.track_object(await panel.get_message("Out_RadiationMsg"))
 
-    # Telemetry: solar array electrical output
     await simulation.track_object(await solar_panel.get_message("Out_PowerMsg"))
-
-    # Telemetry: eclipse state from solar model
     await simulation.track_object(await solar_model.get_message("Out_EclipseMsg"))
-
-    # Telemetry: battery state
     await simulation.track_object(await battery.get_message("Out_BatteryMsg"))
-
-    # Telemetry: onboard data storage (allocated / capacity)
     await simulation.track_object(await sc_data_storage.get_message("Out_DataStorageMsg"))
 
-    # Telemetry: per-station ground storage for received downlink data
     for gs_entry in ground_stations:
         await simulation.track_object(
             await gs_entry["storage"].get_message("Out_DataStorageMsg")
         )
 
-    ##############################
-    # MANAGED MISSION TIMELINE   #
-    ##############################
-    #
-    # Five days of GEO operations: multi-station RF uplink, thermal control, solar
-    # degradation, onboard storage, battery leakage from day 3, and a deep space
-    # radiation burst on day 2.
-    #
-    #   ┌─────────────┬──────────────────────────────────────────────────────────────┐
-    #   │  Day        │  Event                                                       │
-    #   ├─────────────┼──────────────────────────────────────────────────────────────┤
-    #   │  0.0 - 2.0  │  Nominal; solar degradation accumulates (%/yr model)         │
-    #   │  2.0 - 2.08 │  Deep space radiation burst (2h) hits +Y panel              │
-    #   │  2.08 - 3.0 │  Nominal operations resume                                   │
-    #   │  3.0 - 5.0  │  Battery leakage model enabled (PowerLeakageRate > 0)        │
-    #   └─────────────┴──────────────────────────────────────────────────────────────┘
+    # =========================================================================
+    # MISSION EXECUTION
+    # =========================================================================
+    # 7 days (604,800s), 28 segments of 6 hours each
+    # Each segment: 5h accumulate (downlink off) + 1h downlink (buffer drain)
+    # Events: radiation burst day 2, battery leakage day 3
 
-    SIMULATION_TIME = 432000  # 5 days in seconds
+    SIMULATION_TIME = 604800
     TIME_STEP = 1.0
-
-    # Run through observation targets, changing target every 6 hours
-    TARGET_CHANGE_INTERVAL = 21600  # 6 hours
-    NUM_SEGMENTS = SIMULATION_TIME // TARGET_CHANGE_INTERVAL  # 20 segments for 5 days
-
-    # Two-phase segment timing: accumulate (no downlink) then downlink (drain buffer)
-    ACCUMULATE_SECONDS = 5 * 3600  # 5 hours accumulating data
-    DOWNLINK_SECONDS = 1 * 3600    # 1 hour downlinking to ground station
+    TARGET_CHANGE_INTERVAL = 21600
+    NUM_SEGMENTS = SIMULATION_TIME // TARGET_CHANGE_INTERVAL
+    ACCUMULATE_SECONDS = 5 * 3600
+    DOWNLINK_SECONDS = 1 * 3600
 
     battery_leakage_engaged = False
     radiation_burst_started = False
     radiation_burst_ended = False
 
     for segment in range(NUM_SEGMENTS):
-        # Rotate stations: uplink from one station, downlink to a different station
         uplink_gs = ground_stations[segment % len(ground_stations)]
         downlink_gs = ground_stations[(segment + 1) % len(ground_stations)]
-
         elapsed_time = segment * TARGET_CHANGE_INTERVAL
 
-        # Deep space radiation burst: enable at start of day 2
+        # Radiation burst event: enable at day 2
         if (not radiation_burst_started) and (elapsed_time >= RADIATION_BURST_START_SECONDS):
             await deep_space_source.set(IsEnabled=True)
             radiation_burst_started = True
@@ -616,7 +520,7 @@ async def main(simulation: Simulation) -> None:
                 f"(+Y panel exposure from cosmic source)"
             )
 
-        # Deep space radiation burst: disable after burst duration
+        # Radiation burst event: disable after 2 hours
         burst_end_time = RADIATION_BURST_START_SECONDS + RADIATION_BURST_DURATION_SECONDS
         if (not radiation_burst_ended) and radiation_burst_started and (elapsed_time >= burst_end_time):
             await deep_space_source.set(IsEnabled=False)
@@ -625,7 +529,7 @@ async def main(simulation: Simulation) -> None:
                 f"[t={elapsed_time:>7.0f}s] EVENT: DEEP_SPACE_RADIATION_BURST ended"
             )
 
-        # Battery leakage error model: enable at start of day 3
+        # Battery leakage event: enable at day 3
         if (not battery_leakage_engaged) and (elapsed_time >= BATTERY_LEAKAGE_START_SECONDS):
             await battery_leakage.set(PowerLeakageRate=BATTERY_LEAKAGE_POWER_RATE)
             battery_leakage_engaged = True
@@ -634,49 +538,46 @@ async def main(simulation: Simulation) -> None:
                 f"(PowerLeakageRate={BATTERY_LEAKAGE_POWER_RATE})"
             )
 
-        # --- ACCUMULATE PHASE: downlink disabled, uplink station sends large payload ---
+        # ACCUMULATE PHASE: downlink disabled, receive uplinks
         await tx_storage.set(In_AccessMsg=no_contact_access)
 
-        # Large uplink payload to create visible storage ramp (~1-2 MB of JSON data)
         uplink_payload = {
             "station": uplink_gs["name"],
             "segment": segment,
             "kind": "uplink_telemetry",
-            "data": "X" * (500 * 1024),  # ~500 KB payload per uplink burst
+            "data": "X" * (500 * 1024),
         }
         await uplink_gs["tx"].invoke("TransmitJSON", uplink_payload, "uplink")
 
-        # Additional uplink bursts throughout the accumulate phase
         accumulate_remaining = ACCUMULATE_SECONDS
-        burst_interval = ACCUMULATE_SECONDS // 4  # 4 bursts during accumulate
+        burst_interval = ACCUMULATE_SECONDS // 4
         for burst in range(4):
             burst_time = min(burst_interval, accumulate_remaining)
             if burst_time > 0:
                 await simulation.tick_duration(step=TIME_STEP, time=burst_time)
                 accumulate_remaining -= burst_time
-                # Send another uplink burst
-                if burst < 3:  # Don't send on the last iteration
+                if burst < 3:
                     burst_payload = {
                         "station": uplink_gs["name"],
                         "segment": segment,
                         "burst": burst + 1,
                         "kind": "uplink_burst",
-                        "data": "Y" * (300 * 1024),  # ~300 KB per burst
+                        "data": "Y" * (300 * 1024),
                     }
                     await uplink_gs["tx"].invoke("TransmitJSON", burst_payload, "uplink")
 
-        # --- DOWNLINK PHASE: enable downlink to rotating ground station ---
+        # DOWNLINK PHASE: enable downlink to target station
         await tx_storage.set(In_AccessMsg=downlink_gs["access"])
 
         downlink_time = min(DOWNLINK_SECONDS, SIMULATION_TIME - elapsed_time - ACCUMULATE_SECONDS)
         if downlink_time > 0:
             await simulation.tick_duration(step=TIME_STEP, time=downlink_time)
 
-    ##############################
-    # GEO MANAGEMENT SUMMARY     #
-    ##############################
+    # =========================================================================
+    # DATA RETRIEVAL AND PLOTTING
+    # =========================================================================
+    # 6-panel summary: thermal, radiation, power, and data storage
 
-    # Build dataframes from tracked telemetry
     data_thermal = await simulation.query_dataframe(
         await bus_thermal.get_message("Out_ThermalMsg")
     )
@@ -690,7 +591,6 @@ async def main(simulation: Simulation) -> None:
         await telecom_heater.get_message("Out_PowerMsg")
     )
     
-    # Fetch radiation data from all 5 panels and compute total
     radiation_data_list = []
     for panel in radiation_panels:
         panel_data = await simulation.query_dataframe(
@@ -698,7 +598,6 @@ async def main(simulation: Simulation) -> None:
         )
         radiation_data_list.append(panel_data)
     
-    # Sum TID across panels for reference total curve
     data_radiation_total = radiation_data_list[0].copy()
     data_radiation_total["TotalIonizingDose"] = sum(
         df["TotalIonizingDose"] for df in radiation_data_list
@@ -717,7 +616,6 @@ async def main(simulation: Simulation) -> None:
         await sc_data_storage.get_message("Out_DataStorageMsg")
     )
 
-    # Fetch per-station ground storage data for downlink visualization
     ground_storage_data = []
     for gs_entry in ground_stations:
         gs_data = await simulation.query_dataframe(
@@ -728,17 +626,15 @@ async def main(simulation: Simulation) -> None:
             "data": gs_data,
         })
 
-    # Convert time to days for readability (matches SIMULATION_TIME)
     sim_duration_days = SIMULATION_TIME / 86400.0
     time_days = data_telecom_thermal["Time"] / 86400.0
     time_days_bus = data_thermal["Time"] / 86400.0
 
-    # Create figure with 3x2 subplot grid
     fig = plt.figure(figsize=(14, 10))
     gs = gridspec.GridSpec(3, 2, figure=fig, hspace=0.35, wspace=0.25)
-    fig.suptitle("GEO Telecom Management — 5-Day Satellite Operations Summary", fontsize=14)
+    fig.suptitle("GEO Telecom Management — 7-Day Satellite Operations Summary", fontsize=14)
 
-    # Plot 1: Telecom electronics temperature vs bus + operational band (275–285 K)
+    # Plot 1: Telecom electronics vs bus temperature
     ax1 = fig.add_subplot(gs[0, 0])
     ax1.plot(
         time_days,
@@ -799,7 +695,7 @@ async def main(simulation: Simulation) -> None:
     ax2.set_ylim(-2.0, NOMINAL_HEATER_MAX * 1.15)
     ax2.set_xlim(0.0, sim_duration_days)
 
-    # Plot 3: TID per panel (outward normal) + summed total
+    # Plot 3: TID per panel with deep space burst marker
     ax3 = fig.add_subplot(gs[1, 0])
     tid_colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd"]
     for i, (panel_df, label) in enumerate(zip(radiation_data_list, PANEL_NORMAL_LABELS)):
@@ -822,7 +718,6 @@ async def main(simulation: Simulation) -> None:
         linestyle="--",
         alpha=0.85,
     )
-    # Mark the deep space radiation burst period (day 2, 2-hour burst)
     burst_start_days = RADIATION_BURST_START_SECONDS / 86400.0
     burst_end_days = (RADIATION_BURST_START_SECONDS + RADIATION_BURST_DURATION_SECONDS) / 86400.0
     ax3.axvspan(
@@ -840,8 +735,6 @@ async def main(simulation: Simulation) -> None:
     ax4 = fig.add_subplot(gs[1, 1])
     time_days_solar = data_solar["Time"] / 86400.0
     time_days_eclipse = data_eclipse["Time"] / 86400.0
-
-    # Shade eclipse periods (when Visibility < 0.5, satellite is in shadow)
     visibility = data_eclipse["Visibility"].values
     max_power = data_solar["NominalPower"].max()
     ax4.fill_between(
@@ -853,7 +746,6 @@ async def main(simulation: Simulation) -> None:
         color="gray",
         label="Eclipse",
     )
-
     ax4.plot(
         time_days_solar,
         data_solar["NominalPower"],
@@ -869,7 +761,7 @@ async def main(simulation: Simulation) -> None:
     ax4.set_ylim(-10, max_power * 1.1)
     ax4.set_xlim(0.0, sim_duration_days)
 
-    # Plot 5: Battery State of Charge with leakage event
+    # Plot 5: Battery state of charge with leakage event marker
     ax5 = fig.add_subplot(gs[2, 0])
     ax5.plot(time_days, data_battery["ChargeFraction"] * 100,
              label="State of Charge", color="green", linewidth=0.8)
@@ -881,15 +773,13 @@ async def main(simulation: Simulation) -> None:
     ax5.grid(True, alpha=0.3)
     ax5.set_ylim(0, 110)
     ax5.set_xlim(0.0, sim_duration_days)
-    # No events to shade for battery plot in simplified scenario
 
-    # Plot 6: Onboard data storage fill level with downlink windows and ground station curves
+    # Plot 6: Spacecraft storage sawtooth + ground station reception
     ax6 = fig.add_subplot(gs[2, 1])
     time_days_storage = data_storage["Time"] / 86400.0
     capacity_mb = data_storage["Capacity"].astype(float) / (1024.0 * 1024.0)
     allocated_mb = data_storage["Allocated"].astype(float) / (1024.0 * 1024.0)
 
-    # Shade downlink windows (last hour of each 6-hour segment)
     segment_duration_days = TARGET_CHANGE_INTERVAL / 86400.0
     accumulate_duration_days = ACCUMULATE_SECONDS / 86400.0
     for seg in range(NUM_SEGMENTS):
@@ -900,7 +790,6 @@ async def main(simulation: Simulation) -> None:
             alpha=0.15, color="green", label="Downlink window" if seg == 0 else None
         )
 
-    # Plot onboard spacecraft storage (sawtooth pattern)
     ax6.plot(
         time_days_storage,
         allocated_mb,
@@ -909,8 +798,7 @@ async def main(simulation: Simulation) -> None:
         linewidth=1.2,
     )
 
-    # Plot per-station ground storage curves (cumulative received data)
-    gs_colors = ["#e41a1c", "#377eb8", "#4daf4a", "#984ea3"]  # Distinct colors
+    gs_colors = ["#e41a1c", "#377eb8", "#4daf4a", "#984ea3"]
     for i, gs_data_entry in enumerate(ground_storage_data):
         gs_name = gs_data_entry["name"]
         gs_df = gs_data_entry["data"]
@@ -939,6 +827,5 @@ async def main(simulation: Simulation) -> None:
     plt.show()
 
 
-# Run GEO Management scenario (authenticated client)
 client: Client = credential_helper.fetch_client()
 runner.run_simulation(client, main, dispose=True)
