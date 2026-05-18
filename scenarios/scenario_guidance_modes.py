@@ -182,7 +182,7 @@ async def main(simulation: Simulation) -> None:
     # Plot the power source data from the solar power
     df = await simulation.query_dataframe(await solar_panel.get_message("Out_PowerMsg"))
     times: np.ndarray = df.loc[:, "Time"]
-    power: np.ndarray = df.loc[:, "Power"]
+    power: np.ndarray = df.loc[:, "NominalPower"]
     ax2.plot(times, power)
     ax2.grid(True)
 
