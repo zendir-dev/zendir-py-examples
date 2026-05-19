@@ -24,6 +24,7 @@ Output: 6-panel summary plot showing thermal, radiation, power, and data trends.
 """
 
 import numpy as np
+import os
 import datetime as dt
 from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -462,6 +463,10 @@ async def main(simulation: Simulation) -> None:
     )
 
     solar_model: Model = await spacecraft.get_model("SolarModel")
+
+    
+    export_path: str = os.path.join(os.path.dirname(__file__), "GEO_management_export.json")
+    await simulation.save_state(export_path)
 
     # =========================================================================
     # TELEMETRY TRACKING
