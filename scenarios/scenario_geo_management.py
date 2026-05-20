@@ -24,7 +24,6 @@ Output: 6-panel summary plot showing thermal, radiation, power, and data trends.
 """
 
 import numpy as np
-import os
 import datetime as dt
 from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -197,29 +196,37 @@ async def main(simulation: Simulation) -> None:
         "Temperature": 290.0,
     }
 
-    # +X face panel (roll +90°)
+    # Position radiation panels 5cm out on each face of a cube
+    PANEL_OFFSET = 0.15
+
+    # +X face panel (roll +90°, positioned at +5cm X)
     radiation_panel_px: Object = await spacecraft.add_child("RadiationPanel", **panel_params)
     await radiation_panel_px.invoke("RollDegrees", 90.0)
+    await radiation_panel_px.set(Position_LP_P=np.array([PANEL_OFFSET, 0.0, 0.0]))
     solar_thermal_px: Model = await radiation_panel_px.get_model("SolarExposureThermalModel", **solar_thermal_params)
 
-    # -X face panel (roll -90°)
+    # -X face panel (roll -90°, positioned at -5cm X)
     radiation_panel_mx: Object = await spacecraft.add_child("RadiationPanel", **panel_params)
     await radiation_panel_mx.invoke("RollDegrees", -90.0)
+    await radiation_panel_mx.set(Position_LP_P=np.array([-PANEL_OFFSET, 0.0, 0.0]))
     solar_thermal_mx: Model = await radiation_panel_mx.get_model("SolarExposureThermalModel", **solar_thermal_params)
 
-    # +Y face panel (pitch -90°)
+    # +Y face panel (pitch -90°, positioned at +5cm Y)
     radiation_panel_py: Object = await spacecraft.add_child("RadiationPanel", **panel_params)
     await radiation_panel_py.invoke("PitchDegrees", -90.0)
+    await radiation_panel_py.set(Position_LP_P=np.array([0.0, PANEL_OFFSET, 0.0]))
     solar_thermal_py: Model = await radiation_panel_py.get_model("SolarExposureThermalModel", **solar_thermal_params)
 
-    # -Y face panel (pitch +90°)
+    # -Y face panel (pitch +90°, positioned at -5cm Y)
     radiation_panel_my: Object = await spacecraft.add_child("RadiationPanel", **panel_params)
     await radiation_panel_my.invoke("PitchDegrees", 90.0)
+    await radiation_panel_my.set(Position_LP_P=np.array([0.0, -PANEL_OFFSET, 0.0]))
     solar_thermal_my: Model = await radiation_panel_my.get_model("SolarExposureThermalModel", **solar_thermal_params)
 
-    # +Z face panel (pitch 180°, zenith-facing)
+    # +Z face panel (pitch 180°, zenith-facing, positioned at +5cm Z)
     radiation_panel_pz: Object = await spacecraft.add_child("RadiationPanel", **panel_params)
     await radiation_panel_pz.invoke("PitchDegrees", 180.0)
+    await radiation_panel_pz.set(Position_LP_P=np.array([0.0, 0.0, PANEL_OFFSET]))
     solar_thermal_pz: Model = await radiation_panel_pz.get_model("SolarExposureThermalModel", **solar_thermal_params)
 
     PANEL_NORMAL_LABELS = [
@@ -278,6 +285,9 @@ async def main(simulation: Simulation) -> None:
         Area=6.0,
         Efficiency=0.28,
     )
+    # Rotate 180° about X and move 15cm in -Z direction
+    await solar_panel.invoke("RollDegrees", 180.0)
+    await solar_panel.set(Position_LP_P=np.array([0.0, 0.0, -0.15]))
     SOLAR_DEGRADATION_RATE_PCT_PER_YEAR = 500.0
     solar_degradation: Model = await solar_panel.get_model(
         "SolarPanelDegradationErrorModel",
@@ -463,10 +473,6 @@ async def main(simulation: Simulation) -> None:
     )
 
     solar_model: Model = await spacecraft.get_model("SolarModel")
-
-    
-    export_path: str = os.path.join(os.path.dirname(__file__), "GEO_management_export.json")
-    await simulation.save_state(export_path)
 
     # =========================================================================
     # TELEMETRY TRACKING
