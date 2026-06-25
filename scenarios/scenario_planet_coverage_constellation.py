@@ -18,8 +18,10 @@ grids, per-sensor point queries, and resolution-aware detectability).
 
 Note on coverage semantics: "100% AOI coverage" means every cell in the
 grid was observed at least once, not that all cells received the same
-number of observations.  The AOI heatmap (Figure 2) shows the uneven
-distribution of accumulated visit counts across the region.
+dwell time.  The AOI heatmap (Figure 2) shows uneven accumulated dwell [s]
+across the region.  Values are seconds in FOV from the engine (per-sensor)
+or sensor-seconds (constellation aggregate); grid resolution (lat/lon steps)
+affects which cells register as observed.
 
 Note on detectability: at 550 km altitude with default Camera optics the
 best achievable GSD is ~700 m, far coarser than small ground assets.
@@ -28,9 +30,9 @@ demonstrate a case where resolution is sufficient for detection.
 
 Post-simulation analysis produces four figures:
   1. Per-satellite global coverage bar chart
-  2. Fire-zone AOI visit-count heatmap with ground-target markers
+  2. Fire-zone AOI dwell-time heatmap with ground-target markers
   3. Ground-target detectability summary
-  4. Global Earth coverage heatmap (constellation aggregate)
+  4. Global Earth coverage heatmap (constellation sensor-seconds aggregate)
 """
 
 from datetime import datetime
@@ -307,11 +309,11 @@ async def main(simulation: Simulation) -> None:
     fire_aoi_lon = await fire_aoi_msg.get("LongitudeSteps")
     fire_observed_cells = sum(1 for v in fire_aoi_values if v > 0)
     fire_total_cells = fire_aoi_lat * fire_aoi_lon
-    fire_mean_visits = np.mean([v for v in fire_aoi_values if v > 0]) if fire_observed_cells else 0.0
+    fire_mean_dwell = np.mean([v for v in fire_aoi_values if v > 0]) if fire_observed_cells else 0.0
     print(f"\t Fire Zone AOI: {fire_observed_cells}/{fire_total_cells} cells observed "
           f"({fire_observed_cells / fire_total_cells * 100:.1f}%), "
-          f"mean {fire_mean_visits:.1f} visits/cell")
-    print(f"\t   (100% means every cell seen at least once — see heatmap for revisit distribution)")
+          f"mean {fire_mean_dwell:.1f} sensor-s/cell")
+    print(f"\t   (100% means every cell seen at least once — see heatmap for dwell distribution)")
 
     # PNW context AOI
     pnw_aoi_msg = await get_coverage_message(
@@ -322,10 +324,10 @@ async def main(simulation: Simulation) -> None:
     pnw_aoi_lon = await pnw_aoi_msg.get("LongitudeSteps")
     pnw_observed_cells = sum(1 for v in pnw_aoi_values if v > 0)
     pnw_total_cells = pnw_aoi_lat * pnw_aoi_lon
-    pnw_mean_visits = np.mean([v for v in pnw_aoi_values if v > 0]) if pnw_observed_cells else 0.0
+    pnw_mean_dwell = np.mean([v for v in pnw_aoi_values if v > 0]) if pnw_observed_cells else 0.0
     print(f"\t PNW Context AOI: {pnw_observed_cells}/{pnw_total_cells} cells observed "
           f"({pnw_observed_cells / pnw_total_cells * 100:.1f}%), "
-          f"mean {pnw_mean_visits:.1f} visits/cell")
+          f"mean {pnw_mean_dwell:.1f} sensor-s/cell")
 
     # Per-sensor contribution to Fire Zone AOI
     print("|========================================================|")
@@ -341,7 +343,7 @@ async def main(simulation: Simulation) -> None:
             s_mean = np.mean([v for v in s_values if v > 0]) if s_observed else 0.0
             print(f"\t {label}: {s_observed}/{fire_total_cells} cells "
                   f"({s_observed / fire_total_cells * 100:.1f}%), "
-                  f"mean {s_mean:.1f} visits/cell")
+                  f"mean {s_mean:.1f} s/cell")
         else:
             print(f"\t {label}: no coverage data available")
 
@@ -409,7 +411,7 @@ async def main(simulation: Simulation) -> None:
         cmap="YlOrRd", interpolation="nearest",
     )
     cbar2 = plt.colorbar(im2, ax=ax2)
-    cbar2.set_label("Accumulated Visit Count")
+    cbar2.set_label("Accumulated dwell [sensor·s]")
     for t in GROUND_TARGETS:
         if (FIRE_AOI["min_lat"] <= t["lat"] <= FIRE_AOI["max_lat"] and
                 FIRE_AOI["min_lon"] <= t["lon"] <= FIRE_AOI["max_lon"]):
@@ -418,7 +420,7 @@ async def main(simulation: Simulation) -> None:
                          textcoords="offset points", xytext=(5, 5), fontsize=8)
     ax2.set_xlabel("Longitude [deg E]")
     ax2.set_ylabel("Latitude [deg N]")
-    ax2.set_title("Fire Zone AOI Coverage (Visit Count)")
+    ax2.set_title(f"Fire Zone AOI Coverage (dwell)  grid {fire_aoi_lat}x{fire_aoi_lon}")
 
     # ---- Figure 3: Ground-target detectability ----
     # Log scale keeps both metre-scale target sizes and km-scale resolutions visible.
@@ -459,7 +461,7 @@ async def main(simulation: Simulation) -> None:
         cmap="plasma", shading="flat",
     )
     cbar4 = plt.colorbar(im4, ax=ax4, pad=0.02)
-    cbar4.set_label("Accumulated Visit Count")
+    cbar4.set_label("Accumulated dwell [sensor·s]")
 
     fire_rect = Rectangle(
         (FIRE_AOI["min_lon"], FIRE_AOI["min_lat"]),
@@ -501,7 +503,8 @@ async def main(simulation: Simulation) -> None:
     ax4.set_xlabel("Longitude [deg]")
     ax4.set_ylabel("Latitude [deg]")
     ax4.set_title(f"Global Earth Coverage — Walker Delta {NUM_SATELLITES}/{NUM_PLANES}/1 "
-                  f"({global_total * 100:.1f}% cells observed, {SIM_DURATION_S/60:.0f} min mission)")
+                  f"({global_total * 100:.1f}% cells observed, {SIM_DURATION_S/60:.0f} min mission, "
+                  f"grid {global_lat_steps}x{global_lon_steps})")
     ax4.legend(loc="lower left")
     ax4.grid(True, alpha=0.2)
 
