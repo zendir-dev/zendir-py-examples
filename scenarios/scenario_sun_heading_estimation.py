@@ -96,7 +96,7 @@ async def main(simulation: Simulation) -> None:
             DCM_LP=up_axis_to_dcm(up=orientation),
             Bias=np.random.rand() * 0.002,
             NoiseStd=np.random.rand() * 0.003,
-            FOV=90.0,
+            FieldOfView=90.0,
             KellyCurveFit=0.0,
             ScaleFactor=1.0,
             MinSignal=0.0,

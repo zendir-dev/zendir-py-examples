@@ -149,7 +149,7 @@ async def main(simulation: Simulation) -> None:
     # Add in a RADAR sensor to the spacecraft
     radar: Object = await spacecraft_main.add_child(
         "RADAR",
-        FOV=10.0,  # 10 degree field of view
+        FieldOfView=10.0,  # 10 degree field of view
         Power=1000.0,  # 1000 W power
         Gain=70.0,  # 70 dB gain
         Wavelength=0.03,  # 3 cm wavelength
