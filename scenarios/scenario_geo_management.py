@@ -551,15 +551,17 @@ async def main(simulation: Simulation) -> None:
 
         # ACCUMULATE PHASE: downlink disabled, receive uplinks
         await tx_storage.set(In_AccessMsg=no_contact_access)
-
+        
         uplink_payload = {
             "station": uplink_gs["name"],
             "segment": segment,
             "kind": "uplink_telemetry",
-            "data": "X" * (500 * 1024),
+            "data": "X" * (1 * 1024),
         }
-        await uplink_gs["tx"].invoke("TransmitJSON", uplink_payload, "uplink")
 
+        for i in range(500):
+            await uplink_gs["tx"].invoke("TransmitJSON", uplink_payload, "uplink")
+               
         accumulate_remaining = ACCUMULATE_SECONDS
         burst_interval = ACCUMULATE_SECONDS // 4
         for burst in range(4):
@@ -573,16 +575,18 @@ async def main(simulation: Simulation) -> None:
                         "segment": segment,
                         "burst": burst + 1,
                         "kind": "uplink_burst",
-                        "data": "Y" * (300 * 1024),
+                        "data": "Y" * (1 * 1024),
                     }
-                    await uplink_gs["tx"].invoke("TransmitJSON", burst_payload, "uplink")
+                    for i in range(300):
+                        await uplink_gs["tx"].invoke("TransmitJSON", burst_payload, "uplink")
 
         # DOWNLINK PHASE: enable downlink to target station
         await tx_storage.set(In_AccessMsg=downlink_gs["access"])
 
         downlink_time = min(DOWNLINK_SECONDS, SIMULATION_TIME - elapsed_time - ACCUMULATE_SECONDS)
         if downlink_time > 0:
-            await simulation.tick_duration(step=TIME_STEP, time=downlink_time)
+            for i in range(downlink_time // 600):
+                await simulation.tick_duration(step=TIME_STEP, time=downlink_time // 600)
 
     # =========================================================================
     # DATA RETRIEVAL AND PLOTTING
