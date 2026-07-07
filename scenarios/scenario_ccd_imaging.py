@@ -67,7 +67,7 @@ async def main(simulation: Simulation) -> None:
     ccd: Object = await tracking_mount.add_child(
         "ChargeCoupledDevice",
         Resolution=28,  # 28x28 resolution image
-        FOV=1.0,  # 1 degree field of view
+        FieldOfView=1.0,  # 1 degree field of view
         ExposureTime=0.1,  # 0.1 second exposure time
         Area=10.0,  # 10 square milli-meter area
         Efficiency=0.8,  # 80% efficient with photon collection
