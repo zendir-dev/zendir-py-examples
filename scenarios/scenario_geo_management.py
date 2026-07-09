@@ -8,7 +8,7 @@ with the 'zendir' module. Copyright Zendir, 2025.
 
 GEO Satellite Operations Scenario
 =================================
-A 7-day simulation of a 2500 kg geostationary telecommunications satellite
+A multi day simulation of a 2500 kg geostationary telecommunications satellite
 at 42,164 km semi-major axis, starting at March equinox 2025.
 
 The scenario demonstrates:
@@ -21,10 +21,15 @@ The scenario demonstrates:
   across 4 rotating ground stations (Sydney, Tokyo, Mumbai, Singapore)
 
 Output: 6-panel summary plot showing thermal, radiation, power, and data trends.
+
+Note: As a lengthy simulation of a satellite with simulation intense subsystems modelled, allow ~4 hours for the simulation to run. 
+If curious about the output, the final figure generated is also provided with the scenario in advance, scenario_geo_management.png.
 """
 
+import os
 import numpy as np
 import datetime as dt
+import asyncio
 from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
 from zendir import printer, runner, Object, Simulation, Client, Behaviour, Model
@@ -502,8 +507,6 @@ async def main(simulation: Simulation) -> None:
     # =========================================================================
     # MISSION EXECUTION
     # =========================================================================
-    # 7 days (604,800s), 28 segments of 6 hours each
-    # Each segment: 5h accumulate (downlink off) + 1h downlink (buffer drain)
     # Events: radiation burst day 2, battery leakage day 3
 
     SIMULATION_TIME = 604800
