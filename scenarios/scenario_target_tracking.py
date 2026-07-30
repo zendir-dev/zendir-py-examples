@@ -146,12 +146,14 @@ async def main(simulation: Simulation) -> None:
         ),
     )
 
-    # Add in a RADAR sensor to the spacecraft
+    # Add in a RADAR sensor to the spacecraft. The aperture sets the gain and the
+    # beamwidth together, so a dish this large is what it takes to return a signal
+    # from a one metre target at this range, and it leaves a beam under a tenth of a
+    # degree wide for the tracking controller to hold the target inside.
     radar: Object = await spacecraft_main.add_child(
         "RADAR",
-        FieldOfView=10.0,  # 10 degree field of view
+        ApertureDiameter=49.0,  # 49 m dish, around 72 dB of gain at 3 cm
         Power=1000.0,  # 1000 W power
-        Gain=70.0,  # 70 dB gain
         Wavelength=0.03,  # 3 cm wavelength
         Bandwidth=1.0e6,  # 1 MHz bandwidth
         Temperature=290.0,  # 290 K temperature
