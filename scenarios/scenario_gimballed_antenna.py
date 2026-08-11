@@ -41,7 +41,6 @@ async def main(simulation: Simulation) -> None:
     LATITUDE: float = 10.0  # deg
     LONGITUDE: float = 150.0  # deg
     ALTITUDE: float = 0.0  # m
-    MAX_TORQUE: float = 10.0  # Nm
 
     # Set the epoch of the solar system
     epoch = datetime(2022, 1, 1)
@@ -122,15 +121,13 @@ async def main(simulation: Simulation) -> None:
     # Create the gimbal command message and the gimbal.
     gimbal_cmd_msg = await simulation.add_message("CommandGimbalMessage")
 
-    # Attach the gimbal and rotate it off center
+    # Attach the gimbal (motor-driven position feedback + power draw)
     gimbal = await spacecraft.add_child(
         "Gimbal",
         MinAngle=0.0,  # deg
         MaxAngle=180.0,  # deg
         StepAngle=0.01,  # deg
         DesiredVelocity=np.radians(0.5),  # rad/s
-        Inertia=1000,  # kg m^2
-        MaxTorque=MAX_TORQUE,  # Nm
         Mass=10.0,  # kg
         In_CommandGimbalMsg=gimbal_cmd_msg,
     )
