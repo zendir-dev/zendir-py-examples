@@ -1,0 +1,8 @@
+# RPO TestBed Dependencies
+# Install with: pip install -r requirements.txt
+
+# Zendir API client (contians it's own simulation dependencies)
+zendir
+
+# GUI dependencies (optional, only needed for run_ui.py)
+pillow>=9.0.0
