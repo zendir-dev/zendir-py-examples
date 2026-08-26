@@ -21,6 +21,9 @@ from zendir import runner, printer, Client
 from zendir.maths.constants import RPM
 from zendir.maths.constellations import CoplanarCircular
 from zendir import Simulation, Object, Behaviour
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 import credential_helper
 
 

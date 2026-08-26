@@ -9,10 +9,6 @@ specified within the parameters below. Importing this method into
 scenario files enables easy access to the correct credentials of
 the system. When using the public API, make sure to enter your access
 key to the GLOBAL_KEY parameter.
-
-This is a deliberate copy of the helper that ships with the examples repository. 
-The RPO test bed is meant to be a self-contained bundle, 
-so it carries its own credentials module.
 """
 
 from zendir import Client

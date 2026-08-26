@@ -16,6 +16,9 @@ message. The data is then plotted and can be shown using matplotlib.
 # Import the relevant helper scripts
 import numpy as np, datetime as dt
 from zendir import printer, Object, Simulation, Client, Instance, runner
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 import credential_helper
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec

@@ -35,12 +35,14 @@ combinations and produces trade study plots showing the Pareto frontier.
 """
 
 import os
+import sys
 import math
 import asyncio
 import numpy as np
 from datetime import datetime
 from matplotlib import pyplot as plt
 from zendir import printer, runner, Object, Simulation, Client
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 import credential_helper
 
 # Headless mode

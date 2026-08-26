@@ -29,6 +29,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from zendir import Client, Instance, Object, Simulation, ZendirException, printer, runner
 
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 import credential_helper
 
 # Prepare the print settings

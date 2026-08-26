@@ -25,6 +25,9 @@ from datetime import datetime
 from zendir import Object, Model, Simulation, printer, runner, Client
 from zendir.maths import astro, utils
 from zendir.maths.constants import RPM
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 import credential_helper
 
 

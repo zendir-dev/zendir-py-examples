@@ -673,10 +673,11 @@ class ToggleSwitch(tk.Canvas):
         _round_rect(self, 1, 1, w - 1, h - 1, r - 1, fill=track, outline="")
         self.create_oval(kx - kr, cy - kr, kx + kr, cy + kr,
                           fill="#cccccc" if disabled else "#ffffff", outline="")
-        self.create_text(
-            lx, cy, text=label, fill=label_color,
-            font=(C["font_ui"], 8, "bold"), anchor=anchor,
-        )
+        if label:
+            self.create_text(
+                lx, cy, text=label, fill=label_color,
+                font=(C["font_ui"], 8, "bold"), anchor=anchor,
+            )
 
     def configure(self, cnf=None, **kw):
         if cnf:

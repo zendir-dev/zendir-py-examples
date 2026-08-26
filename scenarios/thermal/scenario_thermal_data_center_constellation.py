@@ -39,6 +39,9 @@ import matplotlib.gridspec as gridspec
 from zendir import runner, printer, Client, Simulation, Object, Behaviour, Model
 from zendir.maths.constants import D2R, EARTH_REQ
 from zendir.maths.constellations import WalkerDelta
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 import credential_helper
 
 

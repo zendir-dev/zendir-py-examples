@@ -20,6 +20,9 @@ from matplotlib import pyplot as plt
 from zendir.maths import astro
 from zendir import Object, Simulation, Client, printer, System, runner
 from zendir.maths.constants import RPM
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 import credential_helper
 
 

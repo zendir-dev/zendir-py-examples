@@ -4,8 +4,7 @@
 
 This repository includes a number of example scenario files that can be used as the basis for interacting with the Zendir API. Each of the scenarios showcases a particular use-case of the API. In order to use these examples, ensure that `zendir` is installed from Python pip. The `master` branch of this repository will align with the latest version of the `zendir` Python mpodule.
 
-![Sun Pointing Scenario](images/Sun_Pointing_Scenario.png)
-*The sun pointing scenario uses reaction wheels and flight software to orient a spacecraft's solar panel towards the sun, charging the battery when not in the Earth's eclipse.*
+The sun pointing scenario uses reaction wheels and flight software to orient a spacecraft's solar panel towards the sun, charging the battery when not in the Earth's eclipse.
 
 ---
 
@@ -17,4 +16,6 @@ The Zendir API requires an active API token for accessing the simulation. API to
 
 ### Credential Helper
 
-Many of the example Python scenarios, located in the `scenarios` directory use the `credential_helper.py` script to load in a user's credentials (including their API access token) so run the scenarios. This script creates a `zendir.Client` object, which provides access to the simulation. Before running the scenario files, make sure to fill out the `API_TOKEN` parameter in that file with your correct and valid API token.
+Example scenarios under `scenarios/<category>/` (for example `dynamics`, `orbits`, `power`, `sensors`, `telemetry`, and `thermal`) and the RPO TestBed plays use `credential_helper.py` at the **repository root** to load credentials (including the API access token). That script creates a `zendir.Client` object for simulation access. Before running scenario files, fill in the `API_TOKEN` parameter in `credential_helper.py` with a valid API token.
+
+Notebook tutorials live under `scenarios/tutorials/`.

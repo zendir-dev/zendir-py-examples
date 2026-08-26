@@ -20,6 +20,9 @@ from datetime import datetime
 from matplotlib import pyplot as plt
 from zendir import printer, runner, Object, Simulation, Client
 from zendir.maths import astro, constants
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 import credential_helper
 
 

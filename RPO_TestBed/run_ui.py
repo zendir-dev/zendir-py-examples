@@ -21,15 +21,20 @@ matplotlib.use('Agg')
 import os
 import sys
 
-# Add scenarios directory to path for credential_helper import
+# Add examples repo root for credential_helper import
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-SCENARIOS_DIR = os.path.join(SCRIPT_DIR, "scenarios")
-if SCENARIOS_DIR not in sys.path:
-    sys.path.insert(0, SCENARIOS_DIR)
+EXAMPLES_ROOT = os.path.dirname(SCRIPT_DIR)
+if EXAMPLES_ROOT not in sys.path:
+    sys.path.insert(0, EXAMPLES_ROOT)
 
 # Add RPO_TestBed root to path for ui package import
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
+
+# Add scenarios directory for play module imports
+SCENARIOS_DIR = os.path.join(SCRIPT_DIR, "scenarios")
+if SCENARIOS_DIR not in sys.path:
+    sys.path.insert(0, SCENARIOS_DIR)
 
 
 def main():

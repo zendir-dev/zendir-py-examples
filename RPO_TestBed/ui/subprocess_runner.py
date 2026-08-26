@@ -13,8 +13,11 @@ import traceback
 # Add paths for imports
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 RPO_DIR = os.path.dirname(SCRIPT_DIR)
+EXAMPLES_ROOT = os.path.dirname(RPO_DIR)
 SCENARIOS_DIR = os.path.join(RPO_DIR, "scenarios")
 
+if EXAMPLES_ROOT not in sys.path:
+    sys.path.insert(0, EXAMPLES_ROOT)
 if SCENARIOS_DIR not in sys.path:
     sys.path.insert(0, SCENARIOS_DIR)
 if RPO_DIR not in sys.path:

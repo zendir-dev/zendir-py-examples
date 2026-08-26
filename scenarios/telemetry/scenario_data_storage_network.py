@@ -25,6 +25,9 @@ from zendir.maths.data import (
     kilobytes_to_bytes,
     gigabytes_to_bytes,
 )
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 import credential_helper
 
 

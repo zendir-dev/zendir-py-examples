@@ -27,6 +27,7 @@ If curious about the output, the final figure generated is also provided with th
 """
 
 import os
+import sys
 import numpy as np
 import datetime as dt
 import asyncio
@@ -34,6 +35,7 @@ from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
 from zendir import printer, runner, Object, Simulation, Client, Behaviour, Model
 from zendir.maths import astro, constants
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 import credential_helper
 
 printer.clear()

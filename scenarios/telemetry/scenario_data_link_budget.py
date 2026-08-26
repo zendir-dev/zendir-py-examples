@@ -21,6 +21,9 @@ from zendir import printer, Behaviour, runner
 from zendir.maths import astro
 from zendir.maths.data import kilobytes_to_bits
 from zendir import Object, Simulation, Client, printer
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 import credential_helper
 
 # Prepare the print settings

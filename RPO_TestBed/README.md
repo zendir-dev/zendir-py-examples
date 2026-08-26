@@ -16,13 +16,13 @@ source .venv/bin/activate
 # Activate (Windows PowerShell)
 .\.venv\Scripts\Activate.ps1
 
-# Install dependencies
-pip install -r requirements.txt
+# Install dependencies (from the examples repo root, one level up)
+pip install -r ../requirements.txt
 ```
 
 You'll also need the `zendir` package installed (from PyPI or your local installation).
 
-Configure your API credentials in `scenarios/credential_helper.py`:
+Configure your API credentials in `../credential_helper.py` (examples repo root):
 - Set `API_TOKEN` to your Zendir API access key
 - Set `USE_PUBLIC_API = True` to use the public API, or `False` for local API
 
@@ -67,29 +67,31 @@ The UI provides:
   - **API Token field**: View/edit your Zendir API token (masked by default, click 👁 to reveal)
   - **Use Public API toggle**: Switch between public and local API
 
-Changes to API settings are saved directly to `credential_helper.py`. All scenarios remain runnable from the command line — the GUI is an additional interface, not a replacement.
+Changes to API settings are saved directly to `../credential_helper.py` at the examples repo root. All scenarios remain runnable from the command line — the GUI is an additional interface, not a replacement.
 
 ## Layout
 
 ```
-RPO_TestBed/
-├── README.md              This catalog
-├── requirements.txt       Python dependencies
-├── run_suite.py           Runs every play and returns a CI exit code
-├── run_ui.py              Launches the graphical interface
-├── scenarios/             The runnable plays + credential_helper.py
-├── docs/                  One play card per play
-├── images/                Plot output (PNG) written by headless runs
-└── ui/                    GUI application package
-    ├── app.py             Main application window
-    ├── plays.py           Play registry with form schemas
-    ├── runner.py          Worker thread for simulation execution
-    ├── subprocess_runner.py  Subprocess entry point for hard-kill support
-    ├── theme.py           Dark theme styling
-    └── resources/         Logo and favicon
+examples/                          (repo root)
+├── credential_helper.py           Shared API credentials
+├── requirements.txt               Python dependencies
+└── RPO_TestBed/
+    ├── README.md                  This catalog
+    ├── run_suite.py               Runs every play and returns a CI exit code
+    ├── run_ui.py                  Launches the graphical interface
+    ├── scenarios/                 The runnable plays
+    ├── docs/                      One play card per play
+    ├── images/                    Plot output (PNG) written by headless runs
+    └── ui/                        GUI application package
+        ├── app.py                 Main application window
+        ├── plays.py               Play registry with form schemas
+        ├── runner.py              Worker thread for simulation execution
+        ├── subprocess_runner.py   Subprocess entry point for hard-kill support
+        ├── theme.py               Dark theme styling
+        └── resources/             Logo and favicon
 ```
 
-All scenarios require a valid Zendir API connection. Configure your credentials in `scenarios/credential_helper.py` or via the GUI's API settings.
+All scenarios require a valid Zendir API connection. Configure your credentials in `../credential_helper.py` or via the GUI's API settings.
 
 ---
 

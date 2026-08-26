@@ -21,8 +21,8 @@ from ui.theme import (
 
 # Path to resources
 RESOURCES_DIR = os.path.join(os.path.dirname(__file__), "resources")
-CREDENTIAL_HELPER_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "scenarios", "credential_helper.py"
+CREDENTIAL_HELPER_PATH = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "credential_helper.py")
 )
 
 
@@ -191,8 +191,8 @@ class RPOTestBedApp:
             api_frame,
             variable=self._use_public_api_var,
             command=self._on_public_api_toggle,
-            on_text="EN",
-            off_text="DIS",
+            on_text="",
+            off_text="",
             bg=C["bg_dark"]
         )
         self._public_api_toggle.pack(side=tk.RIGHT)

@@ -45,6 +45,9 @@ from zendir.maths.constants import D2R, EARTH_REQ
 from zendir.maths.constellations import WalkerDelta
 from zendir.maths.astro import pcpf_to_geodetic_lla_deg
 from zendir.utils.helper import is_valid_guid
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 import credential_helper
 
 
