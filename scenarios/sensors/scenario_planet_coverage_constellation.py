@@ -8,8 +8,9 @@ with the 'zendir' module. Copyright Zendir, 2026.
 
 This example demonstrates how to use the PlanetCoverage system to monitor
 Earth from a Walker Delta constellation of six satellites. Each spacecraft
-carries either a narrow-FOV Camera (high GSD resolution) or a wide-FOV
-RemoteSensor (rapid swath coverage), all nadir-pointing.
+carries a narrow-FOV Camera (high GSD resolution) and a wide-FOV
+RemoteSensor (rapid swath coverage) on a shared boresight. Ground-pointing
+software keeps that boresight aimed at the centre of the fire-zone AOI.
 
 The scenario defines two priority Areas of Interest over wildfire-prone
 terrain in the US Pacific Northwest, deploys ground targets of varying
@@ -36,6 +37,7 @@ Post-simulation analysis produces four figures:
 """
 
 from datetime import datetime
+import random
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -78,7 +80,8 @@ def _eci_to_ground_track(
     converts to geodetic lat/lon via WGS-84 iteration in
     ``pcpf_to_geodetic_lla_deg``.
     """
-    GMST_EPOCH_RAD = np.radians(9.33)
+    # IAU GMST at 2024-07-20 18:00 UTC is ~209 deg (engine J2000Rotation ≈ 208.6 deg).
+    GMST_EPOCH_RAD = np.radians(208.61)
     OMEGA_EARTH_RAD_S = np.radians(360.98564736629 / 86400.0)
 
     lats = np.empty_like(time_s)
@@ -105,13 +108,16 @@ async def main(simulation: Simulation) -> None:
     NUM_PLANES = 2
     ALTITUDE_M = 550_000
     INCLINATION_DEG = 98.0
-    CAMERA_FOV_DEG = 20.0
+    CAMERA_FOV_DEG = 5.0
     SENSOR_FOV_DEG = 50.0
     SIM_DURATION_S = 5400.0
     SIM_STEP_S = 1.0
 
     FIRE_AOI = dict(min_lat=42.0, max_lat=46.0, min_lon=238.0, max_lon=244.0, lat_steps=30, lon_steps=40)
     PNW_AOI = dict(min_lat=40.0, max_lat=50.0, min_lon=230.0, max_lon=250.0, lat_steps=20, lon_steps=30)
+    FIRE_AIM_LAT = 0.5 * (FIRE_AOI["min_lat"] + FIRE_AOI["max_lat"])
+    FIRE_AIM_LON = 0.5 * (FIRE_AOI["min_lon"] + FIRE_AOI["max_lon"])
+    FIRE_AIM_ALT = 0.0
 
     GROUND_TARGETS = [
         {"name": "Fire Lookout Tower", "lat": 44.0, "lon": 240.0, "alt": 1800.0, "size_m": 15.0},
@@ -131,19 +137,21 @@ async def main(simulation: Simulation) -> None:
         ZeroBase="earth",
     )
     print("\t Epoch: 2024-07-20 18:00:00 UTC (peak fire season)")
+    earth = await simulation.get_planet("earth")
+    earth_state_msg = await earth.get_message("Out_PlanetStateMsg")
 
     # ---- Walker Delta Constellation ----
     print("|========================================================|")
     print("Deploying Walker Delta Constellation:")
     print("|========================================================|")
 
-    # RAAN chosen so one orbital plane's ascending node produces ground tracks
-    # over the PNW fire zone (~241 deg E) at this epoch.  Approximate GMST at
-    # 2024-07-20 18:00 UTC is ~10 deg, plus ~3 deg for Earth rotation during
-    # equator-to-44N transit, giving RAAN ≈ 241 + 10 + 3 ≈ 254 deg for the
-    # plane that covers the target.  With 2 planes separated by 180 deg the
-    # Walker Delta base RAAN is set to 74 deg (plane 2 = 74 + 180 = 254 deg).
-    BASE_RAAN_DEG = 74.0
+    # RAAN chosen so plane 0's ascending pass overflies the PNW fire zone
+    # (~44 N, ~241 deg E) at this epoch.  GMST at 2024-07-20 18:00 UTC is
+    # ~208.6 deg (not ~10 deg).  For i = 98 deg the ground-track longitude
+    # at 44 N is ~8 deg west of the node after Earth rotation during transit,
+    # so the covering-plane RAAN is ≈ 97.3 deg.  The second Walker plane is
+    # 180 deg away (277.3 deg) and provides the descending-node family.
+    BASE_RAAN_DEG = 97.3
 
     cons = WalkerDelta(
         semi_major_axis=EARTH_REQ + ALTITUDE_M,
@@ -187,27 +195,65 @@ async def main(simulation: Simulation) -> None:
             elems["true_anomaly"],
             "earth",
         )
-        await sc.add_child("SimpleNavigationSoftware")
 
-        use_camera = (i % 2 == 0)
-        if use_camera:
-            sensor = await sc.add_child("Camera")
-            await sensor.set(FieldOfView=CAMERA_FOV_DEG)
-            label = f"Cam-{i+1}"
-        else:
-            sensor = await sc.add_child("RemoteSensor")
-            await sensor.set(FieldOfView=SENSOR_FOV_DEG)
-            label = f"RS-{i+1}"
+        # Camera boresight is the alignment axis; the RemoteSensor copies the
+        # same DCM so both payloads look along the identical body-frame direction.
+        camera = await sc.add_child("Camera", FieldOfView=CAMERA_FOV_DEG)
+        await camera.invoke("PitchDegrees", -90.0)
+        await camera.invoke("RegisterWithCoverageSystem", "earth")
+        camera_up = await camera.get("LocalUp")
+        camera_dcm = await camera.get("DCM_LP")
 
-        await sensor.invoke("RegisterWithCoverageSystem", "earth")
-        await sensor.invoke("PitchDegrees", -90.0)
+        remote_sensor = await sc.add_child(
+            "RemoteSensor",
+            FieldOfView=SENSOR_FOV_DEG,
+            DCM_LP=camera_dcm,
+        )
+        await remote_sensor.invoke("RegisterWithCoverageSystem", "earth")
+
+        navigator = await sc.add_behaviour(
+            "SimpleNavigationSoftware",
+            In_SpacecraftStateMsg=await sc.get_message("Out_SpacecraftStateMsg"),
+        )
+        aim_ephem = await sc.add_behaviour(
+            "GeodeticEphemerisTranslationSoftware",
+            Latitude=FIRE_AIM_LAT + 0.5*(i-NUM_SATELLITES/2),  
+            Longitude=FIRE_AIM_LON + 0.5*(i-NUM_SATELLITES/2), 
+            Altitude=FIRE_AIM_ALT,
+            In_PlanetStateMsg=earth_state_msg,
+        )
+        ground_pointing = await sc.add_behaviour(
+            "GroundLocationPointingSoftware",
+            AlignmentVector_B=camera_up,
+            UseBoresightRateDamping=True,
+            SmallAngle=0.001,
+            In_NavigationAttitudeMsg=await navigator.get_message("Out_NavigationAttitudeMsg"),
+            In_NavigationTranslationMsg=await navigator.get_message("Out_NavigationTranslationMsg"),
+            In_EphemerisMsg=await aim_ephem.get_message("Out_EphemerisMsg"),
+        )
+        mrp = await sc.add_behaviour(
+            "MRPFeedbackControlSoftware",
+            K=3.5,
+            P=30.0,
+            Ki=-1.0,
+            IntegralLimit=2.0 / -1.0 * 0.1,
+            In_AttitudeErrorMsg=await ground_pointing.get_message("Out_AttitudeErrorMsg"),
+            In_BodyMassMsg=await sc.get_message("Out_BodyMassMsg"),
+        )
+        await sc.add_child(
+            "ExternalForceTorque",
+            In_CommandTorqueMsg=await mrp.get_message("Out_CommandTorqueMsg"),
+        )
 
         spacecraft_list.append(sc)
-        all_sensors.append(sensor)
-        sensor_labels.append(label)
-        print(f"\t {label}: {CAMERA_FOV_DEG if use_camera else SENSOR_FOV_DEG} deg FOV, "
+        all_sensors.append(camera)
+        all_sensors.append(remote_sensor)
+        sensor_labels.append(f"Cam-{i+1}")
+        sensor_labels.append(f"RS-{i+1}")
+        print(f"\t Sat-{i+1}: Cam {CAMERA_FOV_DEG:.0f} deg + RS {SENSOR_FOV_DEG:.0f} deg FOV, "
               f"RAAN {np.degrees(elems['right_ascension']):.1f} deg, "
-              f"TA {np.degrees(elems['true_anomaly']):.1f} deg")
+              f"TA {np.degrees(elems['true_anomaly']):.1f} deg, "
+              f"aim {FIRE_AIM_LAT:.1f}N {FIRE_AIM_LON:.1f}E")
 
     query_sensor = all_sensors[0]
 
@@ -224,6 +270,7 @@ async def main(simulation: Simulation) -> None:
     )
     print(f"\t Fire Zone AOI: Lat {FIRE_AOI['min_lat']}-{FIRE_AOI['max_lat']}N, "
           f"Lon {FIRE_AOI['min_lon']}-{FIRE_AOI['max_lon']}E, grid {FIRE_AOI['lat_steps']}x{FIRE_AOI['lon_steps']}")
+    print(f"\t Ground-pointing aim: {FIRE_AIM_LAT:.1f}N, {FIRE_AIM_LON:.1f}E (AOI centre)")
 
     pnw_aoi_id = await query_sensor.invoke(
         "DefineAreaOfInterest", "earth",
@@ -494,7 +541,7 @@ async def main(simulation: Simulation) -> None:
         lat_segs = np.split(gt_lat, split_idx)
         lon_segs = np.split(gt_lon, split_idx)
         for j, (ls, lo) in enumerate(zip(lat_segs, lon_segs)):
-            lbl = sensor_labels[i] if j == 0 else None
+            lbl = f"Sat-{i+1}" if j == 0 else None
             ax4.plot(lo, ls, color=color, linewidth=0.8, alpha=0.7, label=lbl)
 
     for t in GROUND_TARGETS:
