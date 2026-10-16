@@ -288,7 +288,7 @@ async def main(simulation: Simulation) -> None:
 
     target_objects: list[Object] = []
     for t in GROUND_TARGETS:
-        obj = await simulation.add_object("GroundObject")
+        obj = await simulation.add_object("GeodeticObject")
         await obj.invoke("SetLocation", t["lat"], t["lon"], t["alt"], "earth")
         target_objects.append(obj)
         print(f"\t {t['name']}: {t['lat']}N, {t['lon']}E (size {t['size_m']} m)")
@@ -408,7 +408,7 @@ async def main(simulation: Simulation) -> None:
 
         # Per-sensor queries: check every sensor and aggregate the best result.
         # Use WasLocationObserved(lat, lon) with explicit coordinates rather than
-        # WasGroundObjectObserved(objId) to avoid GroundObject coordinate-lookup
+        # WasGeodeticObjectObserved(objId) to avoid GeodeticObject coordinate-lookup
         # issues with longitudes in the [180, 360) range.
         any_observed = False
         best_res = -1.0
