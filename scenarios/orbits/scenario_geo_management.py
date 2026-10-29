@@ -53,6 +53,10 @@ OBSERVATION_TARGETS = [
 GEO_ALTITUDE = 35786000
 GEO_SEMI_MAJOR_AXIS = 42164000
 
+# Telem Packet Sizes in Bytes
+UPLINK_PACKET_SIZE_BYTES = 3 * 1024
+UPLINK_TELEMETRY_BYTES = 768
+
 
 async def main(simulation: Simulation) -> None:
 
@@ -376,7 +380,7 @@ async def main(simulation: Simulation) -> None:
             MaximumRange=0.0,
         )
         gs_tx: Object = await gs.add_child("Transmitter")
-        await gs_tx.set(Frequency=UPLINK_HZ, PacketSize=4 * 1024)
+        await gs_tx.set(Frequency=UPLINK_HZ, PacketSize=UPLINK_PACKET_SIZE_BYTES)
         gs_rx: Object = await gs.add_child("Receiver")
         await gs_rx.set(Frequency=DOWNLINK_HZ, Bandwidth=10.0e6)
         access_msg = await gs.invoke("TrackObject", spacecraft)
@@ -561,7 +565,7 @@ async def main(simulation: Simulation) -> None:
             "station": uplink_gs["name"],
             "segment": segment,
             "kind": "uplink_telemetry",
-            "data": "X" * (1 * 1024),
+            "data": "X" * UPLINK_TELEMETRY_BYTES,
         }
 
         for i in range(500):
@@ -580,7 +584,7 @@ async def main(simulation: Simulation) -> None:
                         "segment": segment,
                         "burst": burst + 1,
                         "kind": "uplink_burst",
-                        "data": "Y" * (1 * 1024),
+                        "data": "Y" * UPLINK_TELEMETRY_BYTES,
                     }
                     for i in range(300):
                         await uplink_gs["tx"].invoke("TransmitJSON", burst_payload, "uplink")
